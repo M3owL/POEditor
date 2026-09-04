@@ -12,6 +12,7 @@
       --accent: #6366f1;
       --accent-hover: #4f46e5;
       --green: #22c55e;
+      --red: #ef4444;
       --text: #e4e4e7;
       --text-muted: #a1a1aa;
     }
@@ -24,8 +25,10 @@
     .file-input { display: none; }
     .btn-file { display: block; text-align: center; background: var(--accent); color: #fff; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; }
     .progress-box { padding: 15px; border-bottom: 1px solid var(--border); }
-    .progress-bar-bg { background: #27272a; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 8px; }
+    .progress-bar-bg { background: #27272a; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 8px; margin-bottom: 10px; }
     .progress-bar-fill { background: var(--green); height: 100%; width: 0%; transition: width 0.2s; }
+    .btn-clear { background: #3f3f46; color: white; border: none; width: 100%; padding: 6px; border-radius: 4px; font-size: 11px; cursor: pointer; text-transform: uppercase; font-weight: bold; }
+    .btn-clear:hover { background: var(--red); }
     .entry-list { flex: 1; overflow-y: auto; }
     .list-item { padding: 10px 15px; border-bottom: 1px solid #222226; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
     .list-item:hover { background: #202025; }
@@ -55,7 +58,7 @@
 
   <div id="sidebar">
     <div class="sidebar-header">
-      <label class="btn-file">Wgraj plik .PO <input type="file" id="po-file" class="file-input" accept=".po"></label>
+      <label class="btn-file">Wgraj nowy plik .PO <input type="file" id="po-file" class="file-input" accept=".po"></label>
     </div>
     <div class="progress-box">
       <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:bold;">
@@ -63,6 +66,7 @@
         <span id="progress-text">0 / 0 (0%)</span>
       </div>
       <div class="progress-bar-bg"><div id="progress-bar" class="progress-bar-fill"></div></div>
+      <button class="btn-clear" onclick="clearProgress()">Wyczyść zapis</button>
     </div>
     <div class="entry-list" id="entry-list"></div>
     <div style="padding:15px; border-top: 1px solid var(--border);">
@@ -73,7 +77,7 @@
   <div id="main">
     <div class="card">
       <div class="card-title">Oryginał (Rosyjski)</div>
-      <div id="src-ru" class="source-text">Wgraj plik, aby rozpocząć...</div>
+      <div id="src-ru" class="source-text">Wgraj plik lub kontynuuj z zapisu...</div>
     </div>
 
     <div class="card">
@@ -83,7 +87,7 @@
 
     <div class="card">
       <div class="card-title">Polskie Tłumaczenie</div>
-      <textarea id="target-pl" placeholder="Wpisz tłumaczenie..."></textarea>
+      <textarea id="target-pl" placeholder="Wpisz tłumaczenie..." oninput="autoSaveText()"></textarea>
     </div>
 
     <div class="actions">
@@ -99,6 +103,40 @@
 <script>
   let entries = [];
   let currentIndex = 0;
+
+  // Ładowanie zapisu przy starcie
+  window.onload = function() {
+    const savedData = localStorage.getItem('po_translator_progress');
+    if (savedData) {
+      const parsed = JSON.parse(savedData);
+      entries = parsed.entries;
+      currentIndex = parsed.currentIndex || 0;
+      if (entries.length > 0) {
+        renderList();
+        loadEntry(currentIndex);
+      }
+    }
+  };
+
+  function saveState() {
+    if (entries.length === 0) return;
+    const dataToSave = { entries, currentIndex };
+    localStorage.setItem('po_translator_progress', JSON.stringify(dataToSave));
+  }
+
+  function clearProgress() {
+    if (confirm('Na pewno? Skasujesz cały aktualny postęp w przeglądarce.')) {
+      localStorage.removeItem('po_translator_progress');
+      location.reload();
+    }
+  }
+
+  function autoSaveText() {
+    if (entries[currentIndex]) {
+      entries[currentIndex].pl = document.getElementById('target-pl').value;
+      saveState();
+    }
+  }
 
   document.getElementById('po-file').addEventListener('change', function(e) {
     const file = e.target.files[0];
@@ -134,6 +172,7 @@
     });
 
     currentIndex = 0;
+    saveState(); // Zapis po wgraniu nowego
     renderList();
     loadEntry(0);
   }
@@ -179,6 +218,7 @@
   function loadEntry(idx) {
     if (!entries[idx]) return;
     currentIndex = idx;
+    saveState();
     
     const entry = entries[idx];
     document.getElementById('src-ru').innerText = entry.ru;
@@ -201,6 +241,7 @@
   function saveAndGo(targetIndex) {
     if (entries[currentIndex]) {
       entries[currentIndex].pl = document.getElementById('target-pl').value;
+      saveState();
     }
     loadEntry(targetIndex);
   }
@@ -209,6 +250,7 @@
     if (!entries[currentIndex]) return;
     entries[currentIndex].pl = document.getElementById('target-pl').value;
     entries[currentIndex].approved = true;
+    saveState();
     
     if (currentIndex + 1 < entries.length) {
       loadEntry(currentIndex + 1);
@@ -234,6 +276,7 @@
       }
     });
 
+    saveState();
     renderList();
     alert(`Nadpisano i zatwierdzono ${count} duplikatów.`);
   }
