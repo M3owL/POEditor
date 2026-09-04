@@ -47,6 +47,8 @@
     .btn:hover { background: var(--accent-hover); }
     .btn-secondary { background: #27272a; color: var(--text); margin-right: 10px; }
     .btn-secondary:hover { background: #3f3f46; }
+    .btn-outline { border: 1px solid var(--accent); color: var(--accent); background: transparent; margin-right: 10px; }
+    .btn-outline:hover { background: rgba(99, 102, 241, 0.1); }
   </style>
 </head>
 <body>
@@ -88,6 +90,7 @@
       <div>
         <button class="btn btn-secondary" onclick="navigate(-1)">Poprzedni</button>
         <button class="btn btn-secondary" onclick="navigate(1)">Następny</button>
+        <button class="btn btn-outline" onclick="applyToDuplicates()">Wypełnij duplikaty</button>
       </div>
       <button class="btn" onclick="approveAndNext()">Zatwierdź i Następny (Ctrl+Enter)</button>
     </div>
@@ -125,7 +128,7 @@
           rawHeader: block.substring(0, block.indexOf('msgid')),
           ru: cleanRu,
           pl: cleanPl,
-          approved: false // Domyślnie NIEZATWIERDZONE
+          approved: false
         });
       }
     });
@@ -182,7 +185,6 @@
     document.getElementById('target-pl').value = entry.pl;
     document.getElementById('src-en').innerText = 'Tłumaczenie...';
 
-    // Pobranie angielskiego tłumaczenia z darmowego API
     fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ru&tl=en&dt=t&q=${encodeURIComponent(entry.ru)}`)
       .then(res => res.json())
       .then(data => {
@@ -206,14 +208,34 @@
   function approveAndNext() {
     if (!entries[currentIndex]) return;
     entries[currentIndex].pl = document.getElementById('target-pl').value;
-    entries[currentIndex].approved = true; // Zaznacz jako gotowe
+    entries[currentIndex].approved = true;
     
     if (currentIndex + 1 < entries.length) {
       loadEntry(currentIndex + 1);
     } else {
       renderList();
-      alert('Osiągnięto koniec pliku!');
+      alert('Koniec pliku!');
     }
+  }
+
+  function applyToDuplicates() {
+    if (!entries[currentIndex]) return;
+    const currentRu = entries[currentIndex].ru;
+    const currentPl = document.getElementById('target-pl').value;
+    let count = 0;
+
+    entries.forEach(entry => {
+      if (entry.ru === currentRu) {
+        entry.pl = currentPl;
+        if (!entry.approved) {
+          entry.approved = true;
+          count++;
+        }
+      }
+    });
+
+    renderList();
+    alert(`Nadpisano i zatwierdzono ${count} duplikatów.`);
   }
 
   function navigate(dir) {
@@ -223,7 +245,6 @@
     }
   }
 
-  // Skrót Ctrl+Enter do zatwierdzania
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.key === 'Enter') {
       approveAndNext();
