@@ -20,7 +20,7 @@
     body { background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
 
     /* Sidebar */
-    #sidebar { width: 320px; background: #161619; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+    #sidebar { width: 350px; background: #161619; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
     .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); }
     .file-input { display: none; }
     .btn-file { display: block; text-align: center; background: var(--accent); color: #fff; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; }
@@ -29,10 +29,16 @@
     .progress-bar-fill { background: var(--green); height: 100%; width: 0%; transition: width 0.2s; }
     .btn-clear { background: #3f3f46; color: white; border: none; width: 100%; padding: 6px; border-radius: 4px; font-size: 11px; cursor: pointer; text-transform: uppercase; font-weight: bold; }
     .btn-clear:hover { background: var(--red); }
+    
+    .batch-actions { padding: 10px 15px; border-bottom: 1px solid var(--border); background: #1a1a1e; display: flex; flex-direction: column; gap: 8px; }
+    .batch-row { display: flex; gap: 8px; }
+    
     .entry-list { flex: 1; overflow-y: auto; }
     .list-item { padding: 10px 15px; border-bottom: 1px solid #222226; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
     .list-item:hover { background: #202025; }
     .list-item.active { background: #272730; border-left: 4px solid var(--accent); }
+    .list-item input[type="checkbox"] { cursor: pointer; transform: scale(1.2); }
+    
     .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
     .badge-done { background: rgba(34, 197, 94, 0.2); color: var(--green); }
     .badge-todo { background: rgba(161, 161, 170, 0.1); color: var(--text-muted); }
@@ -43,14 +49,18 @@
     .card-title { font-size: 12px; font-weight: bold; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.5px; }
     .source-text { font-size: 16px; white-space: pre-wrap; line-height: 1.5; }
     .en-preview { color: #38bdf8; font-style: italic; min-height: 24px; }
-    textarea { width: 100%; height: 120px; background: #121214; border: 1px solid var(--border); border-radius: 6px; color: #fff; padding: 12px; font-size: 15px; resize: vertical; outline: none; }
-    textarea:focus { border-color: var(--accent); }
+    
+    textarea, input[type="number"] { background: #121214; border: 1px solid var(--border); border-radius: 6px; color: #fff; padding: 12px; font-size: 15px; outline: none; }
+    textarea { width: 100%; height: 120px; resize: vertical; }
+    textarea:focus, input[type="number"]:focus { border-color: var(--accent); }
+    input[type="number"] { padding: 8px; width: 70px; text-align: center; }
+
     .actions { display: flex; justify-content: space-between; align-items: center; }
     .btn { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
     .btn:hover { background: var(--accent-hover); }
     .btn-secondary { background: #27272a; color: var(--text); margin-right: 10px; }
     .btn-secondary:hover { background: #3f3f46; }
-    .btn-outline { border: 1px solid var(--accent); color: var(--accent); background: transparent; margin-right: 10px; }
+    .btn-outline { border: 1px solid var(--accent); color: var(--accent); background: transparent; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; text-align: center; width: 100%; font-size: 12px;}
     .btn-outline:hover { background: rgba(99, 102, 241, 0.1); }
   </style>
 </head>
@@ -68,6 +78,15 @@
       <div class="progress-bar-bg"><div id="progress-bar" class="progress-bar-fill"></div></div>
       <button class="btn-clear" onclick="clearProgress()">Wyczyść zapis</button>
     </div>
+    
+    <div class="batch-actions">
+      <div class="batch-row">
+        <input type="number" id="auto-check-count" placeholder="+ ile?" min="1">
+        <button class="btn-outline" onclick="autoCheckDown()">Zaznacz w dół</button>
+      </div>
+      <button class="btn-outline" onclick="applyBatchDuplicates()">Wypełnij zaznaczone duplikaty</button>
+    </div>
+
     <div class="entry-list" id="entry-list"></div>
     <div style="padding:15px; border-top: 1px solid var(--border);">
       <button class="btn" style="width:100%;" onclick="exportPO()">Pobierz przetłumaczony PO</button>
@@ -94,7 +113,6 @@
       <div>
         <button class="btn btn-secondary" onclick="navigate(-1)">Poprzedni</button>
         <button class="btn btn-secondary" onclick="navigate(1)">Następny</button>
-        <button class="btn btn-outline" onclick="applyToDuplicates()">Wypełnij duplikaty</button>
       </div>
       <button class="btn" onclick="approveAndNext()">Zatwierdź i Następny (Ctrl+Enter)</button>
     </div>
@@ -104,7 +122,6 @@
   let entries = [];
   let currentIndex = 0;
 
-  // Ładowanie zapisu przy starcie
   window.onload = function() {
     const savedData = localStorage.getItem('po_translator_progress');
     if (savedData) {
@@ -172,7 +189,7 @@
     });
 
     currentIndex = 0;
-    saveState(); // Zapis po wgraniu nowego
+    saveState();
     renderList();
     loadEntry(0);
   }
@@ -199,7 +216,13 @@
         ? '<span class="badge badge-done">GOTOWE</span>' 
         : '<span class="badge badge-todo">DO ROBIENIA</span>';
       
-      div.innerHTML = `<span>${idx + 1}. ${escapeHtml(textPreview)}...</span> ${badge}`;
+      div.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px; max-width: 70%;">
+          <input type="checkbox" class="batch-cb" data-idx="${idx}" onclick="event.stopPropagation()">
+          <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${idx + 1}. ${escapeHtml(textPreview)}</span>
+        </div>
+        ${badge}
+      `;
       listEl.appendChild(div);
     });
 
@@ -235,7 +258,10 @@
         document.getElementById('src-en').innerText = '[Błąd podglądu EN]';
       });
 
-    renderList();
+    document.querySelectorAll('.list-item').forEach((el, i) => {
+      if (i === idx) el.classList.add('active');
+      else el.classList.remove('active');
+    });
   }
 
   function saveAndGo(targetIndex) {
@@ -253,6 +279,7 @@
     saveState();
     
     if (currentIndex + 1 < entries.length) {
+      renderList();
       loadEntry(currentIndex + 1);
     } else {
       renderList();
@@ -260,25 +287,61 @@
     }
   }
 
-  function applyToDuplicates() {
-    if (!entries[currentIndex]) return;
-    const currentRu = entries[currentIndex].ru;
-    const currentPl = document.getElementById('target-pl').value;
-    let count = 0;
+  // Funkcja automatycznie zaznaczająca X checkboxów poniżej pierwszego zaznaczonego
+  function autoCheckDown() {
+    const countInput = document.getElementById('auto-check-count').value;
+    const count = parseInt(countInput);
+    if (isNaN(count) || count <= 0) {
+      alert('Wpisz poprawną liczbę do zaznaczenia!');
+      return;
+    }
+
+    const allCheckboxes = Array.from(document.querySelectorAll('.batch-cb'));
+    const firstCheckedIndex = allCheckboxes.findIndex(cb => cb.checked);
+
+    if (firstCheckedIndex === -1) {
+      alert('Zaznacz najpierw jeden startowy element na liście!');
+      return;
+    }
+
+    let checkedCount = 0;
+    for (let i = firstCheckedIndex + 1; i < allCheckboxes.length && checkedCount < count; i++) {
+      allCheckboxes[i].checked = true;
+      checkedCount++;
+    }
+  }
+
+  function applyBatchDuplicates() {
+    const checkboxes = document.querySelectorAll('.batch-cb:checked');
+    if (checkboxes.length === 0) {
+      alert('Zaznacz najpierw checkboxy przy tłumaczeniach na liście.');
+      return;
+    }
+
+    const translationsMap = {};
+    let totalUpdated = 0;
+
+    checkboxes.forEach(cb => {
+      const idx = parseInt(cb.getAttribute('data-idx'));
+      const entry = entries[idx];
+      translationsMap[entry.ru] = entry.pl;
+    });
 
     entries.forEach(entry => {
-      if (entry.ru === currentRu) {
-        entry.pl = currentPl;
-        if (!entry.approved) {
+      if (translationsMap.hasOwnProperty(entry.ru)) {
+        if (!entry.approved || entry.pl !== translationsMap[entry.ru]) {
+          entry.pl = translationsMap[entry.ru];
           entry.approved = true;
-          count++;
+          totalUpdated++;
         }
       }
     });
 
     saveState();
     renderList();
-    alert(`Nadpisano i zatwierdzono ${count} duplikatów.`);
+    
+    document.getElementById('target-pl').value = entries[currentIndex].pl;
+    alert(`Zrobione. Nadpisano i zatwierdzono łącznie ${totalUpdated} wpisów.`);
   }
 
   function navigate(dir) {
