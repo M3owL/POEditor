@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tłumacz PO - RU -> PL</title>
+  <style>
+    :root {
+      --bg: #121214;
+      --card: #1a1a1e;
+      --border: #2e2e35;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --green: #22c55e;
+      --text: #e4e4e7;
+      --text-muted: #a1a1aa;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+
+    /* Sidebar */
+    #sidebar { width: 320px; background: #161619; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+    .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); }
+    .file-input { display: none; }
+    .btn-file { display: block; text-align: center; background: var(--accent); color: #fff; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .progress-box { padding: 15px; border-bottom: 1px solid var(--border); }
+    .progress-bar-bg { background: #27272a; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 8px; }
+    .progress-bar-fill { background: var(--green); height: 100%; width: 0%; transition: width 0.2s; }
+    .entry-list { flex: 1; overflow-y: auto; }
+    .list-item { padding: 10px 15px; border-bottom: 1px solid #222226; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+    .list-item:hover { background: #202025; }
+    .list-item.active { background: #272730; border-left: 4px solid var(--accent); }
+    .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+    .badge-done { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+    .badge-todo { background: rgba(161, 161, 170, 0.1); color: var(--text-muted); }
+
+    /* Main Content */
+    #main { flex: 1; display: flex; flex-direction: column; padding: 25px; gap: 20px; overflow-y: auto; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 15px; }
+    .card-title { font-size: 12px; font-weight: bold; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.5px; }
+    .source-text { font-size: 16px; white-space: pre-wrap; line-height: 1.5; }
+    .en-preview { color: #38bdf8; font-style: italic; min-height: 24px; }
+    textarea { width: 100%; height: 120px; background: #121214; border: 1px solid var(--border); border-radius: 6px; color: #fff; padding: 12px; font-size: 15px; resize: vertical; outline: none; }
+    textarea:focus { border-color: var(--accent); }
+    .actions { display: flex; justify-content: space-between; align-items: center; }
+    .btn { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    .btn:hover { background: var(--accent-hover); }
+    .btn-secondary { background: #27272a; color: var(--text); margin-right: 10px; }
+    .btn-secondary:hover { background: #3f3f46; }
+  </style>
+</head>
+<body>
+
+  <div id="sidebar">
+    <div class="sidebar-header">
+      <label class="btn-file">Wgraj plik .PO <input type="file" id="po-file" class="file-input" accept=".po"></label>
+    </div>
+    <div class="progress-box">
+      <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:bold;">
+        <span>Postęp</span>
+        <span id="progress-text">0 / 0 (0%)</span>
+      </div>
+      <div class="progress-bar-bg"><div id="progress-bar" class="progress-bar-fill"></div></div>
+    </div>
+    <div class="entry-list" id="entry-list"></div>
+    <div style="padding:15px; border-top: 1px solid var(--border);">
+      <button class="btn" style="width:100%;" onclick="exportPO()">Pobierz przetłumaczony PO</button>
+    </div>
+  </div>
+
+  <div id="main">
+    <div class="card">
+      <div class="card-title">Oryginał (Rosyjski)</div>
+      <div id="src-ru" class="source-text">Wgraj plik, aby rozpocząć...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Podgląd Kontekstu (Angielski - Auto)</div>
+      <div id="src-en" class="source-text en-preview">-</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Polskie Tłumaczenie</div>
+      <textarea id="target-pl" placeholder="Wpisz tłumaczenie..."></textarea>
+    </div>
+
+    <div class="actions">
+      <div>
+        <button class="btn btn-secondary" onclick="navigate(-1)">Poprzedni</button>
+        <button class="btn btn-secondary" onclick="navigate(1)">Następny</button>
+      </div>
+      <button class="btn" onclick="approveAndNext()">Zatwierdź i Następny (Ctrl+Enter)</button>
+    </div>
+  </div>
+
+<script>
+  let entries = [];
+  let currentIndex = 0;
+
+  document.getElementById('po-file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      parsePO(evt.target.result);
+    };
+    reader.readAsText(file);
+  });
+
+  function parsePO(text) {
+    entries = [];
+    const rawBlocks = text.split(/\n\r?\n/);
+    
+    rawBlocks.forEach(block => {
+      if (!block.includes('msgid')) return;
+      
+      const msgidMatch = block.match(/msgid\s+"([\s\S]*?)"(?=\nmsgstr)/);
+      const msgstrMatch = block.match(/msgstr\s+"([\s\S]*?)"$/);
+
+      if (msgidMatch) {
+        const cleanRu = unescapePO(msgidMatch[1]);
+        const cleanPl = msgstrMatch ? unescapePO(msgstrMatch[1]) : '';
+        
+        entries.push({
+          rawHeader: block.substring(0, block.indexOf('msgid')),
+          ru: cleanRu,
+          pl: cleanPl,
+          approved: false // Domyślnie NIEZATWIERDZONE
+        });
+      }
+    });
+
+    currentIndex = 0;
+    renderList();
+    loadEntry(0);
+  }
+
+  function unescapePO(str) {
+    return str.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\"/g, '"');
+  }
+
+  function escapePO(str) {
+    return str.replace(/"/g, '\\"').replace(/\r\n/g, '\\r\\n').replace(/\n/g, '\\n');
+  }
+
+  function renderList() {
+    const listEl = document.getElementById('entry-list');
+    listEl.innerHTML = '';
+    
+    entries.forEach((item, idx) => {
+      const div = document.createElement('div');
+      div.className = `list-item ${idx === currentIndex ? 'active' : ''}`;
+      div.onclick = () => saveAndGo(idx);
+      
+      const textPreview = item.ru.substring(0, 25) || 'Puste';
+      const badge = item.approved 
+        ? '<span class="badge badge-done">GOTOWE</span>' 
+        : '<span class="badge badge-todo">DO ROBIENIA</span>';
+      
+      div.innerHTML = `<span>${idx + 1}. ${escapeHtml(textPreview)}...</span> ${badge}`;
+      listEl.appendChild(div);
+    });
+
+    updateProgress();
+  }
+
+  function updateProgress() {
+    const approvedCount = entries.filter(e => e.approved).length;
+    const total = entries.length;
+    const percent = total ? Math.round((approvedCount / total) * 100) : 0;
+    
+    document.getElementById('progress-text').innerText = `${approvedCount} / ${total} (${percent}%)`;
+    document.getElementById('progress-bar').style.width = `${percent}%`;
+  }
+
+  function loadEntry(idx) {
+    if (!entries[idx]) return;
+    currentIndex = idx;
+    
+    const entry = entries[idx];
+    document.getElementById('src-ru').innerText = entry.ru;
+    document.getElementById('target-pl').value = entry.pl;
+    document.getElementById('src-en').innerText = 'Tłumaczenie...';
+
+    // Pobranie angielskiego tłumaczenia z darmowego API
+    fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ru&tl=en&dt=t&q=${encodeURIComponent(entry.ru)}`)
+      .then(res => res.json())
+      .then(data => {
+        const enText = data[0].map(x => x[0]).join('');
+        document.getElementById('src-en').innerText = enText;
+      })
+      .catch(() => {
+        document.getElementById('src-en').innerText = '[Błąd podglądu EN]';
+      });
+
+    renderList();
+  }
+
+  function saveAndGo(targetIndex) {
+    if (entries[currentIndex]) {
+      entries[currentIndex].pl = document.getElementById('target-pl').value;
+    }
+    loadEntry(targetIndex);
+  }
+
+  function approveAndNext() {
+    if (!entries[currentIndex]) return;
+    entries[currentIndex].pl = document.getElementById('target-pl').value;
+    entries[currentIndex].approved = true; // Zaznacz jako gotowe
+    
+    if (currentIndex + 1 < entries.length) {
+      loadEntry(currentIndex + 1);
+    } else {
+      renderList();
+      alert('Osiągnięto koniec pliku!');
+    }
+  }
+
+  function navigate(dir) {
+    const newIdx = currentIndex + dir;
+    if (newIdx >= 0 && newIdx < entries.length) {
+      saveAndGo(newIdx);
+    }
+  }
+
+  // Skrót Ctrl+Enter do zatwierdzania
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key === 'Enter') {
+      approveAndNext();
+    }
+  });
+
+  function exportPO() {
+    if (!entries.length) return;
+    let output = '';
+    
+    entries.forEach(e => {
+      output += e.rawHeader;
+      output += `msgid "${escapePO(e.ru)}"\n`;
+      output += `msgstr "${escapePO(e.pl)}"\n\n`;
+    });
+
+    const blob = new Blob([output], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'Game_Pl_translated.po';
+    a.click();
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+</script>
+</body>
+</html>
