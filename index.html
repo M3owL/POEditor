@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tłumacz PO - RU -> PL</title>
+  <title>Tłumacz PO / XLSX</title>
+  <!-- Biblioteka do XLSX -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <style>
     :root {
       --bg: #121214;
@@ -21,7 +23,8 @@
 
     /* Sidebar */
     #sidebar { width: 350px; background: #161619; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-    .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); }
+    .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+    .lang-select { background: #27272a; color: white; border: 1px solid var(--border); border-radius: 4px; padding: 6px; font-size: 12px; width: 100%; outline: none; }
     .file-input { display: none; }
     .btn-file { display: block; text-align: center; background: var(--accent); color: #fff; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; }
     .progress-box { padding: 15px; border-bottom: 1px solid var(--border); }
@@ -68,7 +71,21 @@
 
   <div id="sidebar">
     <div class="sidebar-header">
-      <label class="btn-file">Wgraj nowy plik .PO <input type="file" id="po-file" class="file-input" accept=".po"></label>
+      <select id="lang-src" class="lang-select">
+        <option value="ru">Oryginał: Rosyjski</option>
+        <option value="en">Oryginał: Angielski</option>
+        <option value="de">Oryginał: Niemiecki</option>
+      </select>
+      <select id="lang-prev" class="lang-select">
+        <option value="en">Podgląd: Angielski</option>
+        <option value="ru">Podgląd: Rosyjski</option>
+        <option value="pl">Podgląd: Polski</option>
+      </select>
+      <select id="lang-tgt" class="lang-select">
+        <option value="pl">Cel: Polski</option>
+      </select>
+      
+      <label class="btn-file">Wgraj plik (.PO / .XLSX) <input type="file" id="file-input" class="file-input" accept=".po, .xlsx"></label>
     </div>
     <div class="progress-box">
       <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:bold;">
@@ -89,24 +106,24 @@
 
     <div class="entry-list" id="entry-list"></div>
     <div style="padding:15px; border-top: 1px solid var(--border);">
-      <button class="btn" style="width:100%;" onclick="exportPO()">Pobierz przetłumaczony PO</button>
+      <button class="btn" style="width:100%;" onclick="exportFile()">Pobierz Przetłumaczony Plik</button>
     </div>
   </div>
 
   <div id="main">
     <div class="card">
-      <div class="card-title">Oryginał (Rosyjski)</div>
-      <div id="src-ru" class="source-text">Wgraj plik lub kontynuuj z zapisu...</div>
+      <div class="card-title" id="card-src-title">Oryginał</div>
+      <div id="src-text" class="source-text">Wgraj plik lub kontynuuj z zapisu...</div>
     </div>
 
     <div class="card">
-      <div class="card-title">Podgląd Kontekstu (Angielski - Auto)</div>
-      <div id="src-en" class="source-text en-preview">-</div>
+      <div class="card-title" id="card-prev-title">Podgląd Kontekstu (Auto)</div>
+      <div id="prev-text" class="source-text en-preview">-</div>
     </div>
 
     <div class="card">
-      <div class="card-title">Polskie Tłumaczenie</div>
-      <textarea id="target-pl" placeholder="Wpisz tłumaczenie..." oninput="autoSaveText()"></textarea>
+      <div class="card-title" id="card-tgt-title">Tłumaczenie</div>
+      <textarea id="target-text" placeholder="Wpisz tłumaczenie..." oninput="autoSaveText()"></textarea>
     </div>
 
     <div class="actions">
@@ -123,7 +140,7 @@
   let currentIndex = 0;
 
   window.onload = function() {
-    const savedData = localStorage.getItem('po_translator_progress');
+    const savedData = localStorage.getItem('translator_progress');
     if (savedData) {
       const parsed = JSON.parse(savedData);
       entries = parsed.entries;
@@ -138,31 +155,39 @@
   function saveState() {
     if (entries.length === 0) return;
     const dataToSave = { entries, currentIndex };
-    localStorage.setItem('po_translator_progress', JSON.stringify(dataToSave));
+    localStorage.setItem('translator_progress', JSON.stringify(dataToSave));
   }
 
   function clearProgress() {
     if (confirm('Na pewno? Skasujesz cały aktualny postęp w przeglądarce.')) {
-      localStorage.removeItem('po_translator_progress');
+      localStorage.removeItem('translator_progress');
       location.reload();
     }
   }
 
   function autoSaveText() {
     if (entries[currentIndex]) {
-      entries[currentIndex].pl = document.getElementById('target-pl').value;
+      entries[currentIndex].target = document.getElementById('target-text').value;
       saveState();
     }
   }
 
-  document.getElementById('po-file').addEventListener('change', function(e) {
+  document.getElementById('file-input').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
+    
+    const ext = file.name.split('.').pop().toLowerCase();
     const reader = new FileReader();
-    reader.onload = function(evt) {
-      parsePO(evt.target.result);
-    };
-    reader.readAsText(file);
+    
+    if (ext === 'po') {
+      reader.onload = function(evt) { parsePO(evt.target.result); };
+      reader.readAsText(file);
+    } else if (ext === 'xlsx') {
+      reader.onload = function(evt) { parseXLSX(evt.target.result); };
+      reader.readAsArrayBuffer(file);
+    } else {
+      alert('Nieobsługiwany format pliku!');
+    }
   });
 
   function parsePO(text) {
@@ -171,36 +196,56 @@
     
     rawBlocks.forEach(block => {
       if (!block.includes('msgid')) return;
-      
       const msgidMatch = block.match(/msgid\s+"([\s\S]*?)"(?=\nmsgstr)/);
       const msgstrMatch = block.match(/msgstr\s+"([\s\S]*?)"$/);
 
       if (msgidMatch) {
-        const cleanRu = unescapePO(msgidMatch[1]);
-        const cleanPl = msgstrMatch ? unescapePO(msgstrMatch[1]) : '';
-        
         entries.push({
+          type: 'po',
           rawHeader: block.substring(0, block.indexOf('msgid')),
-          ru: cleanRu,
-          pl: cleanPl,
+          source: unescapePO(msgidMatch[1]),
+          target: msgstrMatch ? unescapePO(msgstrMatch[1]) : '',
           approved: false
         });
       }
     });
 
+    initData();
+  }
+
+  function parseXLSX(data) {
+    const workbook = XLSX.read(data, {type: 'array'});
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(sheet, {header: 1});
+    
+    entries = [];
+    // Zaczynamy od i=1 omijając nagłówki
+    for(let i=1; i<json.length; i++) {
+      const row = json[i];
+      if(!row || (!row[0] && !row[2])) continue; // Pomija puste wiersze
+      
+      entries.push({
+        type: 'xlsx',
+        id: row[0] || '',
+        context: row[1] || '',
+        source: row[2] || '',
+        target: row[3] || '',
+        approved: false
+      });
+    }
+
+    initData();
+  }
+
+  function initData() {
     currentIndex = 0;
     saveState();
     renderList();
     loadEntry(0);
   }
 
-  function unescapePO(str) {
-    return str.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\"/g, '"');
-  }
-
-  function escapePO(str) {
-    return str.replace(/"/g, '\\"').replace(/\r\n/g, '\\r\\n').replace(/\n/g, '\\n');
-  }
+  function unescapePO(str) { return str.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\"/g, '"'); }
+  function escapePO(str) { return str.replace(/"/g, '\\"').replace(/\r\n/g, '\\r\\n').replace(/\n/g, '\\n'); }
 
   function renderList() {
     const listEl = document.getElementById('entry-list');
@@ -211,7 +256,7 @@
       div.className = `list-item ${idx === currentIndex ? 'active' : ''}`;
       div.onclick = () => saveAndGo(idx);
       
-      const textPreview = item.ru.substring(0, 25) || 'Puste';
+      const textPreview = item.source.substring(0, 25) || 'Puste';
       const badge = item.approved 
         ? '<span class="badge badge-done">GOTOWE</span>' 
         : '<span class="badge badge-todo">DO ROBIENIA</span>';
@@ -244,18 +289,29 @@
     saveState();
     
     const entry = entries[idx];
-    document.getElementById('src-ru').innerText = entry.ru;
-    document.getElementById('target-pl').value = entry.pl;
-    document.getElementById('src-en').innerText = 'Tłumaczenie...';
+    document.getElementById('src-text').innerText = entry.source;
+    document.getElementById('target-text').value = entry.target;
+    document.getElementById('prev-text').innerText = 'Tłumaczenie API...';
 
-    fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ru&tl=en&dt=t&q=${encodeURIComponent(entry.ru)}`)
+    // Aktualizacja tytułów z wybranym językiem
+    const srcEl = document.getElementById('lang-src');
+    const prevEl = document.getElementById('lang-prev');
+    const tgtEl = document.getElementById('lang-tgt');
+    
+    document.getElementById('card-src-title').innerText = `Oryginał (${srcEl.options[srcEl.selectedIndex].text.split(': ')[1]})`;
+    document.getElementById('card-prev-title').innerText = `Podgląd (${prevEl.options[prevEl.selectedIndex].text.split(': ')[1]})`;
+    document.getElementById('card-tgt-title').innerText = `Tłumaczenie (${tgtEl.options[tgtEl.selectedIndex].text.split(': ')[1]})`;
+
+    const sl = srcEl.value;
+    const tl = prevEl.value;
+
+    fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(entry.source)}`)
       .then(res => res.json())
       .then(data => {
-        const enText = data[0].map(x => x[0]).join('');
-        document.getElementById('src-en').innerText = enText;
+        document.getElementById('prev-text').innerText = data[0].map(x => x[0]).join('');
       })
       .catch(() => {
-        document.getElementById('src-en').innerText = '[Błąd podglądu EN]';
+        document.getElementById('prev-text').innerText = '[Błąd podglądu API]';
       });
 
     document.querySelectorAll('.list-item').forEach((el, i) => {
@@ -266,7 +322,7 @@
 
   function saveAndGo(targetIndex) {
     if (entries[currentIndex]) {
-      entries[currentIndex].pl = document.getElementById('target-pl').value;
+      entries[currentIndex].target = document.getElementById('target-text').value;
       saveState();
     }
     loadEntry(targetIndex);
@@ -274,7 +330,7 @@
 
   function approveAndNext() {
     if (!entries[currentIndex]) return;
-    entries[currentIndex].pl = document.getElementById('target-pl').value;
+    entries[currentIndex].target = document.getElementById('target-text').value;
     entries[currentIndex].approved = true;
     saveState();
     
@@ -287,12 +343,10 @@
     }
   }
 
-  // Funkcja automatycznie zaznaczająca X checkboxów poniżej pierwszego zaznaczonego
   function autoCheckDown() {
-    const countInput = document.getElementById('auto-check-count').value;
-    const count = parseInt(countInput);
+    const count = parseInt(document.getElementById('auto-check-count').value);
     if (isNaN(count) || count <= 0) {
-      alert('Wpisz poprawną liczbę do zaznaczenia!');
+      alert('Wpisz poprawną liczbę!');
       return;
     }
 
@@ -300,7 +354,7 @@
     const firstCheckedIndex = allCheckboxes.findIndex(cb => cb.checked);
 
     if (firstCheckedIndex === -1) {
-      alert('Zaznacz najpierw jeden startowy element na liście!');
+      alert('Zaznacz najpierw jeden startowy element!');
       return;
     }
 
@@ -313,24 +367,20 @@
 
   function applyBatchDuplicates() {
     const checkboxes = document.querySelectorAll('.batch-cb:checked');
-    if (checkboxes.length === 0) {
-      alert('Zaznacz najpierw checkboxy przy tłumaczeniach na liście.');
-      return;
-    }
+    if (checkboxes.length === 0) return alert('Brak zaznaczonych elementów.');
 
     const translationsMap = {};
     let totalUpdated = 0;
 
     checkboxes.forEach(cb => {
-      const idx = parseInt(cb.getAttribute('data-idx'));
-      const entry = entries[idx];
-      translationsMap[entry.ru] = entry.pl;
+      const entry = entries[parseInt(cb.getAttribute('data-idx'))];
+      translationsMap[entry.source] = entry.target;
     });
 
     entries.forEach(entry => {
-      if (translationsMap.hasOwnProperty(entry.ru)) {
-        if (!entry.approved || entry.pl !== translationsMap[entry.ru]) {
-          entry.pl = translationsMap[entry.ru];
+      if (translationsMap.hasOwnProperty(entry.source)) {
+        if (!entry.approved || entry.target !== translationsMap[entry.source]) {
+          entry.target = translationsMap[entry.source];
           entry.approved = true;
           totalUpdated++;
         }
@@ -339,39 +389,43 @@
 
     saveState();
     renderList();
-    
-    document.getElementById('target-pl').value = entries[currentIndex].pl;
-    alert(`Zrobione. Nadpisano i zatwierdzono łącznie ${totalUpdated} wpisów.`);
+    document.getElementById('target-text').value = entries[currentIndex].target;
+    alert(`Nadpisano i zatwierdzono ${totalUpdated} wpisów.`);
   }
 
   function navigate(dir) {
     const newIdx = currentIndex + dir;
-    if (newIdx >= 0 && newIdx < entries.length) {
-      saveAndGo(newIdx);
-    }
+    if (newIdx >= 0 && newIdx < entries.length) saveAndGo(newIdx);
   }
 
   document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.key === 'Enter') {
-      approveAndNext();
-    }
+    if (e.ctrlKey && e.key === 'Enter') approveAndNext();
   });
 
-  function exportPO() {
+  function exportFile() {
     if (!entries.length) return;
-    let output = '';
     
-    entries.forEach(e => {
-      output += e.rawHeader;
-      output += `msgid "${escapePO(e.ru)}"\n`;
-      output += `msgstr "${escapePO(e.pl)}"\n\n`;
-    });
-
-    const blob = new Blob([output], { type: 'text/plain;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'Game_Pl_translated.po';
-    a.click();
+    if (entries[0].type === 'xlsx') {
+      const wsData = [['ID', 'Context (msgctxt)', 'Source text', 'Translation']];
+      entries.forEach(e => wsData.push([e.id, e.context, e.source, e.target]));
+      
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Translations");
+      XLSX.writeFile(wb, 'Przetlumaczone.xlsx');
+    } else {
+      let output = '';
+      entries.forEach(e => {
+        output += e.rawHeader;
+        output += `msgid "${escapePO(e.source)}"\n`;
+        output += `msgstr "${escapePO(e.target)}"\n\n`;
+      });
+      const blob = new Blob([output], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'Przetlumaczone.po';
+      a.click();
+    }
   }
 
   function escapeHtml(str) {
