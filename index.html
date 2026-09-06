@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tłumacz PO / XLSX</title>
-  <!-- Biblioteka do XLSX -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <style>
     :root {
@@ -21,7 +20,6 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     body { background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
 
-    /* Sidebar */
     #sidebar { width: 350px; background: #161619; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
     .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
     .lang-select { background: #27272a; color: white; border: 1px solid var(--border); border-radius: 4px; padding: 6px; font-size: 12px; width: 100%; outline: none; }
@@ -46,7 +44,6 @@
     .badge-done { background: rgba(34, 197, 94, 0.2); color: var(--green); }
     .badge-todo { background: rgba(161, 161, 170, 0.1); color: var(--text-muted); }
 
-    /* Main Content */
     #main { flex: 1; display: flex; flex-direction: column; padding: 25px; gap: 20px; overflow-y: auto; }
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 15px; }
     .card-title { font-size: 12px; font-weight: bold; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.5px; }
@@ -181,7 +178,7 @@
     
     if (ext === 'po') {
       reader.onload = function(evt) { parsePO(evt.target.result); };
-      reader.readAsText(file);
+      reader.readAsText(file, 'UTF-8');
     } else if (ext === 'xlsx') {
       reader.onload = function(evt) { parseXLSX(evt.target.result); };
       reader.readAsArrayBuffer(file);
@@ -189,6 +186,24 @@
       alert('Nieobsługiwany format pliku!');
     }
   });
+
+  function decodeText(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\r')
+      .replace(/\\t/g, '\t')
+      .replace(/\\"/g, '"');
+  }
+
+  function encodeText(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/"/g, '\\"')
+      .replace(/\r\n/g, '\\r\\n')
+      .replace(/\n/g, '\\n')
+      .replace(/\t/g, '\\t');
+  }
 
   function parsePO(text) {
     entries = [];
@@ -203,8 +218,8 @@
         entries.push({
           type: 'po',
           rawHeader: block.substring(0, block.indexOf('msgid')),
-          source: unescapePO(msgidMatch[1]),
-          target: msgstrMatch ? unescapePO(msgstrMatch[1]) : '',
+          source: decodeText(msgidMatch[1]),
+          target: msgstrMatch ? decodeText(msgstrMatch[1]) : '',
           approved: false
         });
       }
@@ -214,22 +229,21 @@
   }
 
   function parseXLSX(data) {
-    const workbook = XLSX.read(data, {type: 'array'});
+    const workbook = XLSX.read(data, { type: 'array', raw: true });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const json = XLSX.utils.sheet_to_json(sheet, {header: 1});
+    const json = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
     
     entries = [];
-    // Zaczynamy od i=1 omijając nagłówki
-    for(let i=1; i<json.length; i++) {
+    for(let i = 1; i < json.length; i++) {
       const row = json[i];
-      if(!row || (!row[0] && !row[2])) continue; // Pomija puste wiersze
+      if(!row || (row[0] === undefined && row[2] === undefined)) continue;
       
       entries.push({
         type: 'xlsx',
-        id: row[0] || '',
-        context: row[1] || '',
-        source: row[2] || '',
-        target: row[3] || '',
+        id: row[0] !== undefined ? String(row[0]) : '',
+        context: row[1] !== undefined ? String(row[1]) : '',
+        source: row[2] !== undefined ? decodeText(String(row[2])) : '',
+        target: row[3] !== undefined ? decodeText(String(row[3])) : '',
         approved: false
       });
     }
@@ -243,9 +257,6 @@
     renderList();
     loadEntry(0);
   }
-
-  function unescapePO(str) { return str.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\"/g, '"'); }
-  function escapePO(str) { return str.replace(/"/g, '\\"').replace(/\r\n/g, '\\r\\n').replace(/\n/g, '\\n'); }
 
   function renderList() {
     const listEl = document.getElementById('entry-list');
@@ -293,7 +304,6 @@
     document.getElementById('target-text').value = entry.target;
     document.getElementById('prev-text').innerText = 'Tłumaczenie API...';
 
-    // Aktualizacja tytułów z wybranym językiem
     const srcEl = document.getElementById('lang-src');
     const prevEl = document.getElementById('lang-prev');
     const tgtEl = document.getElementById('lang-tgt');
@@ -407,18 +417,27 @@
     
     if (entries[0].type === 'xlsx') {
       const wsData = [['ID', 'Context (msgctxt)', 'Source text', 'Translation']];
-      entries.forEach(e => wsData.push([e.id, e.context, e.source, e.target]));
+      
+      entries.forEach(e => {
+        wsData.push([
+          e.id,
+          e.context,
+          encodeText(e.source),
+          encodeText(e.target)
+        ]);
+      });
       
       const ws = XLSX.utils.aoa_to_sheet(wsData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Translations");
-      XLSX.writeFile(wb, 'Przetlumaczone.xlsx');
+      
+      XLSX.writeFile(wb, 'Przetlumaczone.xlsx', { bookType: 'xlsx', compression: true });
     } else {
       let output = '';
       entries.forEach(e => {
         output += e.rawHeader;
-        output += `msgid "${escapePO(e.source)}"\n`;
-        output += `msgstr "${escapePO(e.target)}"\n\n`;
+        output += `msgid "${encodeText(e.source)}"\n`;
+        output += `msgstr "${encodeText(e.target)}"\n\n`;
       });
       const blob = new Blob([output], { type: 'text/plain;charset=utf-8' });
       const a = document.createElement('a');
@@ -429,7 +448,7 @@
   }
 
   function escapeHtml(str) {
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 </script>
 </body>
