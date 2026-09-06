@@ -1,382 +1,1296 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="en" class="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tłumacz PO - RU -> PL</title>
-  <style>
-    :root {
-      --bg: #121214;
-      --card: #1a1a1e;
-      --border: #2e2e35;
-      --accent: #6366f1;
-      --accent-hover: #4f46e5;
-      --green: #22c55e;
-      --red: #ef4444;
-      --text: #e4e4e7;
-      --text-muted: #a1a1aa;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-    body { background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M3owL - Polish Translator Portfolio</title>
+    
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-    /* Sidebar */
-    #sidebar { width: 350px; background: #161619; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-    .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); }
-    .file-input { display: none; }
-    .btn-file { display: block; text-align: center; background: var(--accent); color: #fff; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; }
-    .progress-box { padding: 15px; border-bottom: 1px solid var(--border); }
-    .progress-bar-bg { background: #27272a; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 8px; margin-bottom: 10px; }
-    .progress-bar-fill { background: var(--green); height: 100%; width: 0%; transition: width 0.2s; }
-    .btn-clear { background: #3f3f46; color: white; border: none; width: 100%; padding: 6px; border-radius: 4px; font-size: 11px; cursor: pointer; text-transform: uppercase; font-weight: bold; }
-    .btn-clear:hover { background: var(--red); }
-    
-    .batch-actions { padding: 10px 15px; border-bottom: 1px solid var(--border); background: #1a1a1e; display: flex; flex-direction: column; gap: 8px; }
-    .batch-row { display: flex; gap: 8px; }
-    
-    .entry-list { flex: 1; overflow-y: auto; }
-    .list-item { padding: 10px 15px; border-bottom: 1px solid #222226; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
-    .list-item:hover { background: #202025; }
-    .list-item.active { background: #272730; border-left: 4px solid var(--accent); }
-    .list-item input[type="checkbox"] { cursor: pointer; transform: scale(1.2); }
-    
-    .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
-    .badge-done { background: rgba(34, 197, 94, 0.2); color: var(--green); }
-    .badge-todo { background: rgba(161, 161, 170, 0.1); color: var(--text-muted); }
-
-    /* Main Content */
-    #main { flex: 1; display: flex; flex-direction: column; padding: 25px; gap: 20px; overflow-y: auto; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 15px; }
-    .card-title { font-size: 12px; font-weight: bold; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.5px; }
-    .source-text { font-size: 16px; white-space: pre-wrap; line-height: 1.5; }
-    .en-preview { color: #38bdf8; font-style: italic; min-height: 24px; }
-    
-    textarea, input[type="number"] { background: #121214; border: 1px solid var(--border); border-radius: 6px; color: #fff; padding: 12px; font-size: 15px; outline: none; }
-    textarea { width: 100%; height: 120px; resize: vertical; }
-    textarea:focus, input[type="number"]:focus { border-color: var(--accent); }
-    input[type="number"] { padding: 8px; width: 70px; text-align: center; }
-
-    .actions { display: flex; justify-content: space-between; align-items: center; }
-    .btn { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-    .btn:hover { background: var(--accent-hover); }
-    .btn-secondary { background: #27272a; color: var(--text); margin-right: 10px; }
-    .btn-secondary:hover { background: #3f3f46; }
-    .btn-outline { border: 1px solid var(--accent); color: var(--accent); background: transparent; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; text-align: center; width: 100%; font-size: 12px;}
-    .btn-outline:hover { background: rgba(99, 102, 241, 0.1); }
-  </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { dark: '#0f172a', darker: '#020617', accent: '#06b6d4' },
+                    animation: { 
+                        'scroll': 'scroll 30s linear infinite',
+                        'fade-in': 'fadeIn 0.25s ease-out forwards'
+                    },
+                    keyframes: {
+                        scroll: { '0%': { transform: 'translateX(0)' }, '100%': { transform: 'translateX(-50%)' } },
+                        fadeIn: { '0%': { opacity: '0', transform: 'translateY(6px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color:#020617;color:#f8fafc;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;overflow-x:hidden }
+        .glass { background:rgba(30,41,59,.75);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1) }
+        .hide-scrollbar::-webkit-scrollbar { display:none }
+        .hide-scrollbar { -ms-overflow-style:none;scrollbar-width:none }
+        .marquee-container { display:flex;width:max-content }
+        .marquee-container:hover { animation-play-state:paused }
+        .form-input { width:100%;background:#111827;border:1px solid #374151;border-radius:.375rem;padding:.55rem .65rem;color:#fff }
+        .form-input:focus { border-color:#06b6d4;outline:none }
+    </style>
 </head>
 <body>
+<div id="root"></div>
 
-  <div id="sidebar">
-    <div class="sidebar-header">
-      <label class="btn-file">Wgraj nowy plik .PO <input type="file" id="po-file" class="file-input" accept=".po"></label>
-    </div>
-    <div class="progress-box">
-      <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:bold;">
-        <span>Postęp</span>
-        <span id="progress-text">0 / 0 (0%)</span>
-      </div>
-      <div class="progress-bar-bg"><div id="progress-bar" class="progress-bar-fill"></div></div>
-      <button class="btn-clear" onclick="clearProgress()">Wyczyść zapis</button>
-    </div>
-    
-    <div class="batch-actions">
-      <div class="batch-row">
-        <input type="number" id="auto-check-count" placeholder="+ ile?" min="1">
-        <button class="btn-outline" onclick="autoCheckDown()">Zaznacz w dół</button>
-      </div>
-      <button class="btn-outline" onclick="applyBatchDuplicates()">Wypełnij zaznaczone duplikaty</button>
-    </div>
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
 
-    <div class="entry-list" id="entry-list"></div>
-    <div style="padding:15px; border-top: 1px solid var(--border);">
-      <button class="btn" style="width:100%;" onclick="exportPO()">Pobierz przetłumaczony PO</button>
-    </div>
-  </div>
+const SUPABASE_URL = 'https://empvklffqwrlllovhgzx.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_an1FqOGAgwRQCzxp6UWuvQ_TFadZ9EW';
 
-  <div id="main">
-    <div class="card">
-      <div class="card-title">Oryginał (Rosyjski)</div>
-      <div id="src-ru" class="source-text">Wgraj plik lub kontynuuj z zapisu...</div>
-    </div>
+let supabaseClient = null;
 
-    <div class="card">
-      <div class="card-title">Podgląd Kontekstu (Angielski - Auto)</div>
-      <div id="src-en" class="source-text en-preview">-</div>
-    </div>
+const REMEMBER_KEY = 'm3owl_remember_session';
+if (localStorage.getItem(REMEMBER_KEY) === null) localStorage.setItem(REMEMBER_KEY, 'true');
 
-    <div class="card">
-      <div class="card-title">Polskie Tłumaczenie</div>
-      <textarea id="target-pl" placeholder="Wpisz tłumaczenie..." oninput="autoSaveText()"></textarea>
-    </div>
-
-    <div class="actions">
-      <div>
-        <button class="btn btn-secondary" onclick="navigate(-1)">Poprzedni</button>
-        <button class="btn btn-secondary" onclick="navigate(1)">Następny</button>
-      </div>
-      <button class="btn" onclick="approveAndNext()">Zatwierdź i Następny (Ctrl+Enter)</button>
-    </div>
-  </div>
-
-<script>
-  let entries = [];
-  let currentIndex = 0;
-
-  window.onload = function() {
-    const savedData = localStorage.getItem('po_translator_progress');
-    if (savedData) {
-      const parsed = JSON.parse(savedData);
-      entries = parsed.entries;
-      currentIndex = parsed.currentIndex || 0;
-      if (entries.length > 0) {
-        renderList();
-        loadEntry(currentIndex);
-      }
+const authStorage = {
+    getItem: (key) => {
+        try {
+            return localStorage.getItem(REMEMBER_KEY) === 'true' ? localStorage.getItem(key) : sessionStorage.getItem(key);
+        } catch (e) { return null; }
+    },
+    setItem: (key, value) => {
+        try {
+            (localStorage.getItem(REMEMBER_KEY) === 'true' ? localStorage : sessionStorage).setItem(key, value);
+        } catch (e) {}
+    },
+    removeItem: (key) => {
+        try { localStorage.removeItem(key); sessionStorage.removeItem(key); } catch (e) {}
     }
-  };
+};
 
-  function saveState() {
-    if (entries.length === 0) return;
-    const dataToSave = { entries, currentIndex };
-    localStorage.setItem('po_translator_progress', JSON.stringify(dataToSave));
-  }
-
-  function clearProgress() {
-    if (confirm('Na pewno? Skasujesz cały aktualny postęp w przeglądarce.')) {
-      localStorage.removeItem('po_translator_progress');
-      location.reload();
-    }
-  }
-
-  function autoSaveText() {
-    if (entries[currentIndex]) {
-      entries[currentIndex].pl = document.getElementById('target-pl').value;
-      saveState();
-    }
-  }
-
-  document.getElementById('po-file').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(evt) {
-      parsePO(evt.target.result);
-    };
-    reader.readAsText(file);
-  });
-
-  function parsePO(text) {
-    entries = [];
-    const rawBlocks = text.split(/\n\r?\n/);
-    
-    rawBlocks.forEach(block => {
-      if (!block.includes('msgid')) return;
-      
-      const msgidMatch = block.match(/msgid\s+"([\s\S]*?)"(?=\nmsgstr)/);
-      const msgstrMatch = block.match(/msgstr\s+"([\s\S]*?)"$/);
-
-      if (msgidMatch) {
-        const cleanRu = unescapePO(msgidMatch[1]);
-        const cleanPl = msgstrMatch ? unescapePO(msgstrMatch[1]) : '';
-        
-        entries.push({
-          rawHeader: block.substring(0, block.indexOf('msgid')),
-          ru: cleanRu,
-          pl: cleanPl,
-          approved: false
-        });
-      }
-    });
-
-    currentIndex = 0;
-    saveState();
-    renderList();
-    loadEntry(0);
-  }
-
-  function unescapePO(str) {
-    return str.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\"/g, '"');
-  }
-
-  function escapePO(str) {
-    return str.replace(/"/g, '\\"').replace(/\r\n/g, '\\r\\n').replace(/\n/g, '\\n');
-  }
-
-  function renderList() {
-    const listEl = document.getElementById('entry-list');
-    listEl.innerHTML = '';
-    
-    entries.forEach((item, idx) => {
-      const div = document.createElement('div');
-      div.className = `list-item ${idx === currentIndex ? 'active' : ''}`;
-      div.onclick = () => saveAndGo(idx);
-      
-      const textPreview = item.ru.substring(0, 25) || 'Puste';
-      const badge = item.approved 
-        ? '<span class="badge badge-done">GOTOWE</span>' 
-        : '<span class="badge badge-todo">DO ROBIENIA</span>';
-      
-      div.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 10px; max-width: 70%;">
-          <input type="checkbox" class="batch-cb" data-idx="${idx}" onclick="event.stopPropagation()">
-          <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${idx + 1}. ${escapeHtml(textPreview)}</span>
-        </div>
-        ${badge}
-      `;
-      listEl.appendChild(div);
-    });
-
-    updateProgress();
-  }
-
-  function updateProgress() {
-    const approvedCount = entries.filter(e => e.approved).length;
-    const total = entries.length;
-    const percent = total ? Math.round((approvedCount / total) * 100) : 0;
-    
-    document.getElementById('progress-text').innerText = `${approvedCount} / ${total} (${percent}%)`;
-    document.getElementById('progress-bar').style.width = `${percent}%`;
-  }
-
-  function loadEntry(idx) {
-    if (!entries[idx]) return;
-    currentIndex = idx;
-    saveState();
-    
-    const entry = entries[idx];
-    document.getElementById('src-ru').innerText = entry.ru;
-    document.getElementById('target-pl').value = entry.pl;
-    document.getElementById('src-en').innerText = 'Tłumaczenie...';
-
-    fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ru&tl=en&dt=t&q=${encodeURIComponent(entry.ru)}`)
-      .then(res => res.json())
-      .then(data => {
-        const enText = data[0].map(x => x[0]).join('');
-        document.getElementById('src-en').innerText = enText;
-      })
-      .catch(() => {
-        document.getElementById('src-en').innerText = '[Błąd podglądu EN]';
-      });
-
-    document.querySelectorAll('.list-item').forEach((el, i) => {
-      if (i === idx) el.classList.add('active');
-      else el.classList.remove('active');
-    });
-  }
-
-  function saveAndGo(targetIndex) {
-    if (entries[currentIndex]) {
-      entries[currentIndex].pl = document.getElementById('target-pl').value;
-      saveState();
-    }
-    loadEntry(targetIndex);
-  }
-
-  function approveAndNext() {
-    if (!entries[currentIndex]) return;
-    entries[currentIndex].pl = document.getElementById('target-pl').value;
-    entries[currentIndex].approved = true;
-    saveState();
-    
-    if (currentIndex + 1 < entries.length) {
-      renderList();
-      loadEntry(currentIndex + 1);
-    } else {
-      renderList();
-      alert('Koniec pliku!');
-    }
-  }
-
-  // Funkcja automatycznie zaznaczająca X checkboxów poniżej pierwszego zaznaczonego
-  function autoCheckDown() {
-    const countInput = document.getElementById('auto-check-count').value;
-    const count = parseInt(countInput);
-    if (isNaN(count) || count <= 0) {
-      alert('Wpisz poprawną liczbę do zaznaczenia!');
-      return;
-    }
-
-    const allCheckboxes = Array.from(document.querySelectorAll('.batch-cb'));
-    const firstCheckedIndex = allCheckboxes.findIndex(cb => cb.checked);
-
-    if (firstCheckedIndex === -1) {
-      alert('Zaznacz najpierw jeden startowy element na liście!');
-      return;
-    }
-
-    let checkedCount = 0;
-    for (let i = firstCheckedIndex + 1; i < allCheckboxes.length && checkedCount < count; i++) {
-      allCheckboxes[i].checked = true;
-      checkedCount++;
-    }
-  }
-
-  function applyBatchDuplicates() {
-    const checkboxes = document.querySelectorAll('.batch-cb:checked');
-    if (checkboxes.length === 0) {
-      alert('Zaznacz najpierw checkboxy przy tłumaczeniach na liście.');
-      return;
-    }
-
-    const translationsMap = {};
-    let totalUpdated = 0;
-
-    checkboxes.forEach(cb => {
-      const idx = parseInt(cb.getAttribute('data-idx'));
-      const entry = entries[idx];
-      translationsMap[entry.ru] = entry.pl;
-    });
-
-    entries.forEach(entry => {
-      if (translationsMap.hasOwnProperty(entry.ru)) {
-        if (!entry.approved || entry.pl !== translationsMap[entry.ru]) {
-          entry.pl = translationsMap[entry.ru];
-          entry.approved = true;
-          totalUpdated++;
+function getSupabase() {
+    if (supabaseClient) return supabaseClient;
+    if (window.supabase && typeof window.supabase.createClient === 'function') {
+        try {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+                auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: authStorage }
+            });
+            return supabaseClient;
+        } catch (e) {
+            return null;
         }
-      }
-    });
-
-    saveState();
-    renderList();
-    
-    document.getElementById('target-pl').value = entries[currentIndex].pl;
-    alert(`Zrobione. Nadpisano i zatwierdzono łącznie ${totalUpdated} wpisów.`);
-  }
-
-  function navigate(dir) {
-    const newIdx = currentIndex + dir;
-    if (newIdx >= 0 && newIdx < entries.length) {
-      saveAndGo(newIdx);
     }
-  }
+    return null;
+}
 
-  document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.key === 'Enter') {
-      approveAndNext();
+const defaultCategories = [
+    { category:'Speed', value:5 },
+    { category:'Communication', value:5 },
+    { category:'Professionalism', value:5 },
+    { category:'Reliability', value:5 }
+];
+
+function renderStars(rating) {
+    const value = Number(rating) || 0;
+    const stars = [];
+    for (let i=1;i<=5;i++) {
+        if (i <= Math.floor(value)) {
+            stars.push(<span key={i} className="text-yellow-400">★</span>);
+        } else if (i === Math.ceil(value) && value % 1 !== 0) {
+            const percentage = (value % 1) * 100;
+            stars.push(
+                <span key={i} className="relative inline-block text-gray-600">
+                    ★
+                    <span className="absolute top-0 left-0 overflow-hidden text-yellow-400" style={{width:`${percentage}%`}}>★</span>
+                </span>
+            );
+        } else {
+            stars.push(<span key={i} className="text-gray-600">★</span>);
+        }
     }
-  });
+    return <div className="flex gap-0.5 items-center">{stars}</div>;
+}
 
-  function exportPO() {
-    if (!entries.length) return;
-    let output = '';
+function calculateAverageRating(ratings) {
+    if (!Array.isArray(ratings) || ratings.length===0) return 0;
+    const values = ratings.map(r=>Number(r.value)).filter(Number.isFinite);
+    if (!values.length) return 0;
+    return values.reduce((a,b)=>a+b,0)/values.length;
+}
+
+function formatDate(dateString) {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+}
+
+function getSteamAppId(url) {
+    if (!url) return null;
+    const match = url.match(/\/app\/(\d+)/);
+    return match ? match[1] : null;
+}
+
+function avatarFallback(name) {
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=0f172a&color=fff`;
+}
+
+function normalizeProject(p) {
+    return {
+        ...p,
+        steamLink: p.steamLink != null ? p.steamLink : (p.steam_url != null ? p.steam_url : ''),
+        details: p.details != null ? p.details : '',
+        pinnedReviews: p.pinnedReviews != null ? p.pinnedReviews : (p.pinned_reviews != null ? p.pinned_reviews : []),
+        pinned: !!p.pinned,
+        sort_order: p.sort_order != null ? Number(p.sort_order) : 0
+    };
+}
+
+function normalizeReview(r) {
+    return {
+        ...r,
+        pfp: r.pfp != null ? r.pfp : (r.avatar_url != null ? r.avatar_url : ''),
+        discord: r.discord != null ? r.discord : (r.discord_username != null ? r.discord_username : ''),
+        text: r.text != null ? r.text : (r.review_text != null ? r.review_text : ''),
+        date: r.date != null ? r.date : (r.created_at != null ? r.created_at : ''),
+        game_title: r.game_title != null ? r.game_title : '',
+        ratings: Array.isArray(r.ratings) ? r.ratings : []
+    };
+}
+
+function normalizeCode(c) {
+    return {
+        ...c,
+        pfp: c.pfp != null ? c.pfp : (c.avatar_url != null ? c.avatar_url : ''),
+        discord: c.discord != null ? c.discord : (c.discord_username != null ? c.discord_username : ''),
+        game_title: c.game_title != null ? c.game_title : '',
+        used: !!c.used
+    };
+}
+
+function App() {
+    const [reviews,setReviews] = useState([]);
+    const [projects,setProjects] = useState([]);
+    const [inviteCodes,setInviteCodes] = useState([]);
+    const [isAdmin,setIsAdmin] = useState(false);
+    const [session,setSession] = useState(null);
+    const [activeTab,setActiveTab] = useState('portfolio');
+    const [loading,setLoading] = useState(true);
+    const [error,setError] = useState('');
+    const [toast,setToast] = useState('');
+
+    const [modal, setModal] = useState({ type: null, data: null });
+
+    const loadReviews = async (adminView=isAdmin) => {
+        const client = getSupabase();
+        if (!client) return;
+        let query = client.from('reviews').select('*').order('created_at',{ascending:false});
+        if (!adminView) query = query.eq('published',true);
+        const {data,error} = await query;
+        if (error) { handleNetworkError(error); return; }
+        setReviews((data || []).map(normalizeReview));
+    };
+
+    const loadProjects = async () => {
+        const client = getSupabase();
+        if (!client) return;
+        const {data,error} = await client.from('projects').select('*').order('sort_order',{ascending:true}).order('created_at',{ascending:false});
+        if (error) { handleNetworkError(error); return; }
+        setProjects((data || []).map(normalizeProject));
+    };
+
+    const loadInviteCodes = async () => {
+        const client = getSupabase();
+        if (!client || !isAdmin) return;
+        const {data,error} = await client.from('invite_codes').select('*').eq('used',false).order('created_at',{ascending:false});
+        if (error) { handleNetworkError(error); return; }
+        setInviteCodes((data || []).map(normalizeCode));
+    };
+
+    const handleNetworkError = (err) => {
+        if (err && (err.message?.includes('Failed to fetch') || err.status === 0)) {
+            setError('Privacy extension is blocking Supabase connection. Disable adblocker for this site.');
+        } else if (err) {
+            setError(err.message);
+        }
+    };
+
+    const checkAdmin = async (currentSession) => {
+        const client = getSupabase();
+        if (!client || !currentSession || !currentSession.user) {
+            setIsAdmin(false);
+            return false;
+        }
+        const {data,error} = await client.from('admin_users').select('user_id').eq('user_id',currentSession.user.id).maybeSingle();
+        const ok = !error && !!data;
+        setIsAdmin(ok);
+        return ok;
+    };
+
+    useEffect(() => {
+        let attempts = 0;
+        const checkLibrary = setInterval(async () => {
+            attempts++;
+            const client = getSupabase();
+
+            if (client && client.auth) {
+                clearInterval(checkLibrary);
+                try {
+                    const {data:{session:currentSession}} = await client.auth.getSession();
+                    setSession(currentSession);
+                    const admin = await checkAdmin(currentSession);
+                    await Promise.all([loadReviews(admin), loadProjects()]);
+                    if (admin) await loadInviteCodes();
+                } catch (e) {
+                    handleNetworkError(e);
+                } finally {
+                    setLoading(false);
+                }
+
+                client.channel('m3owl-live')
+                    .on('postgres_changes',{event:'*',schema:'public',table:'reviews'},async () => {
+                        const c = getSupabase();
+                        if (c?.auth) {
+                            const {data:{session:currentSession}} = await c.auth.getSession();
+                            const admin = await checkAdmin(currentSession);
+                            await loadReviews(admin);
+                        }
+                    })
+                    .on('postgres_changes',{event:'*',schema:'public',table:'projects'},loadProjects)
+                    .on('postgres_changes',{event:'*',schema:'public',table:'invite_codes'},loadInviteCodes)
+                    .subscribe();
+
+            } else if (attempts > 50) {
+                clearInterval(checkLibrary);
+                setError('Failed to load Supabase from CDN. Check your network.');
+                setLoading(false);
+            }
+        }, 200);
+
+        return () => clearInterval(checkLibrary);
+    }, []);
+
+    useEffect(() => {
+        if (!toast) return;
+        const t = setTimeout(()=>setToast(''),2500);
+        return ()=>clearTimeout(t);
+    },[toast]);
+
+    const logout = async () => {
+        const client = getSupabase();
+        if (client) await client.auth.signOut();
+        setSession(null);
+        setIsAdmin(false);
+        setInviteCodes([]);
+        setActiveTab('reviews');
+        setToast('Logged out.');
+    };
+
+    const handleLoginSuccess = async (newSession) => {
+        const client = getSupabase();
+        setSession(newSession);
+        const admin = await checkAdmin(newSession);
+        if (!admin) {
+            if (client) await client.auth.signOut();
+            setError('This account does not have admin privileges.');
+            return;
+        }
+        await Promise.all([loadReviews(true),loadProjects(),loadInviteCodes()]);
+        setModal({ type: null, data: null });
+        setActiveTab('admin');
+        setToast('Logged in successfully.');
+    };
+
+    const navTabs = [
+        { id: 'about', label: 'About Me' },
+        { id: 'portfolio', label: 'Game Translation History' },
+        { id: 'reviews', label: 'Feedbacks' },
+        { id: 'xlsx', label: 'XLSX Analyzer' }
+    ];
+
+    return (
+        <div className="min-h-screen flex flex-col relative">
+            <header className="glass sticky top-0 z-40 py-3 px-8 grid grid-cols-1 lg:grid-cols-3 items-center border-b border-gray-800 gap-4">
+                <div className="flex flex-col text-center lg:text-left">
+                    <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-accent to-blue-500">M3owL</h1>
+                    <p className="text-xs text-gray-400 truncate">Jakub K. | Discord: <span className="text-white font-mono">_m3owl</span></p>
+                </div>
+                
+                <nav className="flex flex-wrap justify-center gap-2 lg:gap-4">
+                    {navTabs.map(tab => (
+                        <button 
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)} 
+                            className={`px-4 py-3 rounded-lg transition-all duration-300 font-bold border ${activeTab === tab.id ? 'bg-gray-800/80 border-gray-600 text-accent shadow-[0_0_15px_rgba(6,182,212,0.15)]' : 'border-transparent text-gray-400 hover:bg-gray-800/50 hover:text-white hover:border-gray-700'}`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                    {isAdmin && (
+                        <button 
+                            onClick={() => setActiveTab('admin')} 
+                            className={`w-36 py-3 rounded-lg transition-all duration-300 font-bold border ${activeTab === 'admin' ? 'bg-gray-800/80 border-gray-600 text-accent shadow-[0_0_15px_rgba(6,182,212,0.15)]' : 'border-transparent text-gray-400 hover:bg-gray-800/50 hover:text-white hover:border-gray-700'}`}
+                        >
+                            Admin Panel
+                        </button>
+                    )}
+                </nav>
+
+                <div className="flex justify-center lg:justify-end">
+                    {isAdmin && (
+                        <button onClick={logout} className="bg-red-900/80 hover:bg-red-800 text-white px-6 py-2 rounded-lg border border-red-600 transition-colors font-bold text-sm">Logout</button>
+                    )}
+                </div>
+            </header>
+
+            <main className="flex-grow p-8 max-w-7xl mx-auto w-full relative">
+                {error && <div className="mb-8 p-4 rounded-xl border border-red-500/50 bg-red-950/40 text-red-200 text-sm flex justify-between items-center"><span>⚠️ <b>Error:</b> {error}</span><button className="text-lg font-bold ml-4" onClick={()=>setError('')}>×</button></div>}
+                {loading ? <div className="py-24 text-center text-gray-500 font-bold">Connecting to database...</div> : <>
+                    {activeTab==='about' && <AboutMe />}
+                    {activeTab==='portfolio' && <PortfolioTab projects={projects} reviews={reviews} isAdmin={isAdmin} onChanged={loadProjects} onError={setError} openProjectModal={(proj)=>setModal({type:'projectForm', data:proj})} />}
+                    {activeTab==='reviews' && <ReviewsTab reviews={reviews} isAdmin={isAdmin} onRefresh={()=>loadReviews(isAdmin)} onError={setError} onToast={setToast} openCodeModal={()=>setModal({type:'inviteCode', data:null})} />}
+                    {activeTab==='xlsx' && <XlsxTab onError={setError} />}
+                    {activeTab==='admin' && isAdmin && <AdminTab reviews={reviews} inviteCodes={inviteCodes} reloadReviews={loadReviews} reloadProjects={loadProjects} reloadCodes={loadInviteCodes} onError={setError} onToast={setToast} openReviewModal={(rev)=>setModal({type:'reviewForm', data:rev})} openGenerateModal={()=>setModal({type:'generateCode', data:null})} />}
+                </>}
+            </main>
+
+            <footer className="max-w-7xl mx-auto w-full px-8 pb-8 text-xs text-gray-600 font-bold">M3owL · Polish Game Translator · _m3owl</footer>
+            
+            <div
+                aria-hidden="true"
+                onClick={() => {
+                    const now = Date.now();
+                    window.__m3owlClicks = (window.__m3owlClicks || []).filter(t => now - t < 900);
+                    window.__m3owlClicks.push(now);
+                    if (window.__m3owlClicks.length >= 3) {
+                        window.__m3owlClicks = [];
+                        setModal({ type: 'login', data: null });
+                    }
+                }}
+                className="fixed bottom-0 left-0 w-7 h-7 z-[9999] opacity-0 cursor-default"
+            />
+
+            {modal.type === 'login' && <LoginModal onSuccess={handleLoginSuccess} onCancel={()=>setModal({type:null, data:null})} />}
+            {modal.type === 'inviteCode' && <InviteCodeModal onClose={()=>setModal({type:null, data:null})} onSubmitted={async()=>{setModal({type:null, data:null});await loadReviews(isAdmin);setToast('Feedback submitted. Awaiting approval.')}} onError={setError}/>}
+            {modal.type === 'generateCode' && <GenerateCodeModal onClose={()=>setModal({type:null, data:null})} onCreated={async()=>{setModal({type:null, data:null});await loadInviteCodes();setToast('Code generated successfully.')}} onError={setError} onToast={setToast}/>}
+            {modal.type === 'reviewForm' && <ReviewFormModal review={modal.data} onSave={async()=>{setModal({type:null, data:null});await Promise.all([loadReviews(true),loadReviews(false)]);setToast(modal.data?'Updated.':'New feedback added.')}} onCancel={()=>setModal({type:null, data:null})} onError={setError}/>}
+            {modal.type === 'projectForm' && <ProjectFormModal project={modal.data} reviews={reviews} onSave={async(data)=>{
+                const client = getSupabase();
+                if(!client)return;
+                const payload={
+                    title:data.title.trim(),
+                    steam_url:data.steamLink ? data.steamLink.trim() : null,
+                    details:data.details||'',
+                    pinned_reviews:data.pinnedReviews||[],
+                    pinned: !!data.pinned,
+                    sort_order: Number(data.sort_order) || 0
+                };
+                const result=modal.data ? await client.from('projects').update(payload).eq('id',modal.data.id) : await client.from('projects').insert(payload);
+                if(result.error){setError(result.error.message);return;}
+                await loadProjects();
+                setModal({type:null, data:null});
+            }} onCancel={()=>setModal({type:null, data:null})} />}
+
+            {toast && <div className="fixed bottom-5 right-5 z-[200] glass rounded-xl px-4 py-3 text-sm font-bold text-gray-200 shadow-2xl border border-gray-700">{toast}</div>}
+        </div>
+    );
+}
+
+function XlsxTab({onError}) {
+    const [data, setData] = useState(null);
+    const [fileName, setFileName] = useState('');
+    const [loading, setLoading] = useState(false);
     
-    entries.forEach(e => {
-      output += e.rawHeader;
-      output += `msgid "${escapePO(e.ru)}"\n`;
-      output += `msgstr "${escapePO(e.pl)}"\n\n`;
+    const [langOriginal, setLangOriginal] = useState('en');
+    const [langPreview, setLangPreview] = useState('ru');
+
+    const processFile = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setFileName(file.name);
+        setLoading(true);
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            try {
+                if (typeof XLSX === 'undefined') {
+                    throw new Error('SheetJS library failed to load.');
+                }
+                const bstr = evt.target.result;
+                const workbook = XLSX.read(bstr, { type: 'binary' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+                const parsed = json.map(row => {
+                    const id = row['ID'] || row['id'] || '';
+                    const context = row['Context (msgctxt)'] || row['Context'] || row['msgctxt'] || '';
+                    const sourceText = String(row['Source text'] || row['Source'] || row['source'] || '');
+                    const translation = String(row['Translation'] || row['translation'] || '');
+
+                    const wordCount = sourceText.trim() ? sourceText.trim().split(/\s+/).length : 0;
+                    const charCount = sourceText.length;
+                    const isTranslated = translation.trim().length > 0;
+
+                    return { id, context, sourceText, translation, wordCount, charCount, isTranslated };
+                });
+
+                setData(parsed);
+            } catch (err) {
+                onError('Failed to parse XLSX file: ' + err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    const stats = useMemo(() => {
+        if (!data) return null;
+        const totalRows = data.length;
+        const totalWords = data.reduce((acc, r) => acc + r.wordCount, 0);
+        const totalChars = data.reduce((acc, r) => acc + r.charCount, 0);
+        const translatedRows = data.filter(r => r.isTranslated).length;
+        const progress = totalRows > 0 ? ((translatedRows / totalRows) * 100).toFixed(1) : 0;
+
+        return { totalRows, totalWords, totalChars, translatedRows, progress };
+    }, [data]);
+
+    return (
+        <div className="animate-fade-in max-w-5xl mx-auto space-y-6">
+            <div className="flex justify-between items-center border-b border-gray-800 pb-4">
+                <h2 className="text-4xl font-extrabold text-white">XLSX Translation Analyzer</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="glass p-4 rounded-xl border border-gray-700">
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">1. Oryginał</label>
+                    <select value={langOriginal} onChange={e=>setLangOriginal(e.target.value)} className="w-full bg-gray-900 text-white p-2.5 rounded border border-gray-600 focus:border-accent outline-none font-bold text-sm cursor-pointer">
+                        <option value="en">Angielski</option>
+                        <option value="ru">Rosyjski</option>
+                        <option value="de">Niemiecki</option>
+                        <option value="fr">Francuski</option>
+                    </select>
+                </div>
+                <div className="glass p-4 rounded-xl border border-gray-700">
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">2. Podgląd</label>
+                    <select value={langPreview} onChange={e=>setLangPreview(e.target.value)} className="w-full bg-gray-900 text-white p-2.5 rounded border border-gray-600 focus:border-accent outline-none font-bold text-sm cursor-pointer">
+                        <option value="ru">Rosyjski</option>
+                        <option value="en">Angielski</option>
+                        <option value="de">Niemiecki</option>
+                        <option value="fr">Francuski</option>
+                    </select>
+                </div>
+                <div className="glass p-4 rounded-xl border border-gray-700 opacity-70">
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">3. Finał</label>
+                    <select disabled className="w-full bg-gray-900/50 text-gray-400 p-2.5 rounded border border-gray-700 outline-none font-bold text-sm cursor-not-allowed">
+                        <option value="pl">Polski</option>
+                    </select>
+                </div>
+            </div>
+
+            <div className="glass rounded-xl p-8 text-center border border-gray-700 border-dashed hover:border-accent transition-colors">
+                <input
+                    type="file"
+                    accept=".xlsx, .xls"
+                    onChange={processFile}
+                    className="hidden"
+                    id="xlsx-upload"
+                />
+                <label htmlFor="xlsx-upload" className="cursor-pointer flex flex-col items-center justify-center space-y-4">
+                    <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center">
+                        <span className="text-2xl">📊</span>
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-white mb-1">Upload Translation Spreadsheet</h3>
+                        <p className="text-sm text-gray-400">Supported columns: ID, Context, Source text, Translation</p>
+                    </div>
+                    {fileName && <div className="mt-4 px-4 py-2 bg-gray-800 rounded text-sm text-gray-300 font-mono font-bold">Selected: {fileName}</div>}
+                </label>
+            </div>
+
+            {loading && <div className="text-center text-gray-400 font-bold py-8">Analyzing file...</div>}
+
+            {data && stats && (
+                <div className="space-y-6 animate-fade-in">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="glass p-4 rounded-xl border border-gray-700">
+                            <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Total Strings</p>
+                            <p className="text-3xl font-extrabold text-white">{stats.totalRows}</p>
+                        </div>
+                        <div className="glass p-4 rounded-xl border border-gray-700">
+                            <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Total Words (Source)</p>
+                            <p className="text-3xl font-extrabold text-accent">{stats.totalWords.toLocaleString()}</p>
+                        </div>
+                        <div className="glass p-4 rounded-xl border border-gray-700">
+                            <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Translated</p>
+                            <p className="text-3xl font-extrabold text-green-400">{stats.translatedRows} <span className="text-sm text-gray-500">/ {stats.totalRows}</span></p>
+                        </div>
+                        <div className="glass p-4 rounded-xl border border-gray-700 relative overflow-hidden">
+                            <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Progress</p>
+                            <p className="text-3xl font-extrabold text-white z-10 relative">{stats.progress}%</p>
+                            <div className="absolute bottom-0 left-0 h-1 bg-green-500" style={{ width: `${stats.progress}%` }}></div>
+                        </div>
+                    </div>
+
+                    <div className="glass rounded-xl border border-gray-700 overflow-hidden">
+                        <div className="overflow-x-auto max-h-[600px]">
+                            <table className="w-full text-left text-sm whitespace-nowrap">
+                                <thead className="bg-gray-900/90 text-gray-400 font-bold uppercase tracking-wider sticky top-0 z-10">
+                                    <tr>
+                                        <th className="p-3 w-12 text-center">#</th>
+                                        <th className="p-3 w-24">ID</th>
+                                        <th className="p-3 w-1/3">Oryginał ({langOriginal.toUpperCase()})</th>
+                                        <th className="p-3 w-1/3">Tłumaczenie (PL)</th>
+                                        <th className="p-3 w-20 text-center">Words</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-800 text-gray-300">
+                                    {data.slice(0, 100).map((row, idx) => (
+                                        <tr key={idx} className="hover:bg-gray-800/30">
+                                            <td className="p-3 text-center text-gray-600">{idx + 1}</td>
+                                            <td className="p-3 text-xs font-mono text-gray-500 truncate max-w-[100px]" title={row.id}>{row.id || '-'}</td>
+                                            <td className="p-3 whitespace-normal break-words max-w-xs align-top">
+                                                {row.context && <div className="text-[10px] uppercase text-accent/70 mb-1">{row.context}</div>}
+                                                {row.sourceText}
+                                            </td>
+                                            <td className="p-3 whitespace-normal break-words max-w-xs align-top">
+                                                {row.isTranslated ? (
+                                                    <span className="text-green-100">{row.translation}</span>
+                                                ) : (
+                                                    <span className="text-red-400/50 italic text-xs">Nie przetłumaczono</span>
+                                                )}
+                                            </td>
+                                            <td className="p-3 text-center font-mono text-gray-500">{row.wordCount}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {data.length > 100 && (
+                                <div className="p-4 text-center text-xs text-gray-500 font-bold bg-gray-900/50">
+                                    Showing first 100 rows. Found {data.length - 100} more.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function AboutMe() {
+    return (
+        <div className="animate-fade-in grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-6xl mx-auto">
+            <div className="lg:col-span-4 flex flex-col gap-6">
+                <div className="glass rounded-2xl p-6 text-center shadow-xl border border-gray-700/50 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-blue-500/5 z-0 transition-opacity duration-500"></div>
+                    <div className="relative z-10 flex flex-col items-center">
+                        <div className="w-32 h-32 rounded-full border-4 border-gray-800 bg-gray-900 flex items-center justify-center text-4xl mb-4 overflow-hidden shadow-[0_0_20px_rgba(6,182,212,0.2)]">🦉</div>
+                        <h2 className="text-3xl font-extrabold text-white mb-1">M3owL</h2>
+                        <h3 className="text-sm font-bold text-gray-400 mb-6 uppercase tracking-widest">Polish Game Translator</h3>
+                        
+                        <div className="w-full bg-gray-900/80 rounded-xl p-4 border border-gray-700 text-left space-y-3">
+                            <div className="flex justify-between items-center"><span className="text-xs text-gray-500 font-bold uppercase">Location</span><span className="text-sm font-bold">Grudziądz, Poland</span></div>
+                            <div className="flex justify-between items-center"><span className="text-xs text-gray-500 font-bold uppercase">Experience</span><span className="text-sm font-bold">4+ Years</span></div>
+                            <div className="flex justify-between items-center"><span className="text-xs text-gray-500 font-bold uppercase">Focus</span><span className="text-sm font-bold text-accent">Indie Games</span></div>
+                        </div>
+
+                        <div className="w-full mt-6 bg-gray-900/80 rounded-xl p-4 border border-gray-700">
+                            <span className="text-xs text-gray-500 font-bold uppercase block text-left mb-2">Discord</span>
+                            <div className="flex items-center justify-between">
+                                <span className="font-mono text-xl font-bold tracking-tight text-white">_m3owl</span>
+                                <button className="p-2 hover:bg-gray-700 rounded-lg transition-colors border border-gray-600 shadow-sm group-hover:border-accent/50" onClick={() => navigator.clipboard.writeText('_m3owl')} title="Copy Discord ID">
+                                    <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div className="lg:col-span-8 flex flex-col gap-6">
+                <div className="glass rounded-2xl p-8 shadow-xl border border-gray-700/50">
+                    <h3 className="text-2xl font-extrabold mb-6 border-b border-gray-800 pb-4 text-white">Professional Background</h3>
+                    <div className="prose prose-invert prose-p:text-gray-300 prose-p:leading-relaxed max-w-none text-sm font-medium">
+                        <p className="mb-4">
+                            Hi, I'm Jakub. I specialize in English-to-Polish game localization. I've worked on over 50 titles, transforming them into natural-sounding experiences for the Polish audience. My process isn't just word-for-word translation; it's cultural adaptation. I focus on tone, context, and maintaining the developer's original intent while making the dialogue flow effortlessly for Polish players.
+                        </p>
+                        <p>
+                            I primarily collaborate with indie developers and small studios. I understand the constraints and fast iterations of indie development, and I integrate seamlessly into existing workflows, delivering high-quality localized assets reliably.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="glass rounded-2xl p-8 shadow-xl border border-gray-700/50">
+                    <h3 className="text-2xl font-extrabold mb-6 border-b border-gray-800 pb-4 text-white">Technical Toolkit</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[
+                            { name: 'Crowdin', type: 'Localization' }, { name: 'Weblate', type: 'Localization' },
+                            { name: 'Localizor', type: 'Localization' }, { name: 'Poedit', type: 'Software' },
+                            { name: 'VS Code', type: 'Tools' }, { name: 'GitHub', type: 'VCS' }
+                        ].map(skill => (
+                            <div key={skill.name} className="flex items-center justify-between p-3 bg-gray-900/50 rounded-lg border border-gray-800/50">
+                                <span className="font-bold text-white">{skill.name}</span>
+                                <span className="text-[10px] uppercase font-bold text-gray-500 bg-gray-800 px-2 py-1 rounded">{skill.type}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function PortfolioTab({projects, reviews, isAdmin, onChanged, onError, openProjectModal}) {
+    if(!projects || projects.length===0){
+        return <div className="text-center py-20 text-gray-500 font-bold">No projects added yet.</div>;
+    }
+
+    return (
+        <div className="animate-fade-in space-y-6">
+            <div className="flex justify-between items-center border-b border-gray-800 pb-4">
+                <h2 className="text-4xl font-extrabold text-white">Translated Games</h2>
+                {isAdmin && <button onClick={()=>openProjectModal(null)} className="bg-accent/20 hover:bg-accent/30 text-accent px-4 py-2 rounded-lg border border-accent/50 font-bold text-sm">Add Game</button>}
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+                {projects.map(project => {
+                    const appId = getSteamAppId(project.steamLink);
+                    const coverUrl = appId ? `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/header.jpg` : null;
+                    const projReviews = reviews.filter(r => (project.pinnedReviews || []).includes(r.id));
+                    
+                    return (
+                        <div key={project.id} className="glass rounded-2xl overflow-hidden border border-gray-700/80 shadow-lg flex flex-col md:flex-row group hover:border-gray-600 transition-colors">
+                            <div className="w-full md:w-1/3 lg:w-1/4 bg-gray-900 relative">
+                                {coverUrl ? (
+                                    <img src={coverUrl} alt={project.title} className="w-full h-full object-cover min-h-[160px]" loading="lazy" onError={(e)=>{e.target.style.display='none'}} />
+                                ) : (
+                                    <div className="w-full h-full min-h-[160px] flex items-center justify-center text-gray-700 bg-gray-950 font-bold text-xl">{project.title}</div>
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent md:bg-gradient-to-r"></div>
+                            </div>
+                            
+                            <div className="p-6 md:w-2/3 lg:w-3/4 flex flex-col flex-grow relative">
+                                {isAdmin && (
+                                    <div className="absolute top-4 right-4 flex gap-2">
+                                        <button onClick={()=>openProjectModal(project)} className="text-gray-400 hover:text-white p-2">✏️</button>
+                                        <button onClick={async()=>{
+                                            if(!confirm('Delete project?'))return;
+                                            const c=getSupabase();
+                                            if(!c)return;
+                                            const {error}=await c.from('projects').delete().eq('id',project.id);
+                                            if(error)onError(error.message);
+                                            else onChanged();
+                                        }} className="text-red-500/50 hover:text-red-500 p-2">🗑️</button>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center gap-3 mb-2">
+                                    <h3 className="text-2xl font-extrabold text-white">{project.title}</h3>
+                                    {project.pinned && <span title="Pinned" className="text-accent text-sm">📌</span>}
+                                </div>
+                                
+                                {project.steamLink && (
+                                    <a href={project.steamLink} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-gray-400 hover:text-accent mb-4 inline-flex items-center gap-1 w-fit transition-colors">
+                                        Steam Store Page <span className="text-[10px]">↗</span>
+                                    </a>
+                                )}
+
+                                <p className="text-sm text-gray-300 font-medium mb-6 leading-relaxed max-w-3xl whitespace-pre-line">{project.details}</p>
+
+                                {projReviews.length > 0 && (
+                                    <div className="mt-auto pt-4 border-t border-gray-800">
+                                        <h4 className="text-[10px] uppercase font-bold text-gray-500 mb-3 tracking-widest">Developer Feedback</h4>
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                            {projReviews.map(review => (
+                                                <div key={review.id} className="bg-gray-900/50 p-4 rounded-lg border border-gray-800 flex items-start gap-3">
+                                                    <img src={review.pfp || avatarFallback(review.author)} alt="" className="w-8 h-8 rounded bg-gray-800 border border-gray-700 flex-shrink-0" />
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="font-bold text-sm text-gray-200">{review.author}</span>
+                                                            <span className="text-xs text-gray-500">{review.role}</span>
+                                                        </div>
+                                                        <p className="text-xs text-gray-400 italic font-medium leading-relaxed">"{review.text}"</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+function ReviewsTab({reviews, isAdmin, onRefresh, onError, onToast, openCodeModal}) {
+    const published = reviews.filter(r => r.published);
+
+    if (published.length === 0) {
+        return (
+            <div className="text-center py-20 flex flex-col items-center">
+                <div className="text-gray-500 font-bold mb-4">No reviews available yet.</div>
+                <button onClick={openCodeModal} className="bg-accent hover:bg-cyan-400 text-dark px-6 py-2 rounded-lg font-bold text-sm transition-colors">Submit Review (Requires Code)</button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="animate-fade-in space-y-6">
+            <div className="flex justify-between items-center border-b border-gray-800 pb-4">
+                <h2 className="text-4xl font-extrabold text-white">Client Feedback</h2>
+                <button onClick={openCodeModal} className="bg-transparent hover:bg-gray-900 text-gray-300 px-4 py-2 rounded-lg border border-gray-700 font-bold text-sm transition-colors">Submit Review</button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
+                {published.map(r => (
+                    <div key={r.id} className="glass p-6 rounded-2xl border border-gray-700/80 shadow-lg flex flex-col h-full hover:border-gray-600 transition-colors">
+                        <div className="flex items-start gap-4 mb-4 pb-4 border-b border-gray-800">
+                            <img src={r.pfp || avatarFallback(r.author)} alt="" className="w-12 h-12 rounded-xl bg-gray-800 border border-gray-700 shadow-sm" />
+                            <div className="flex-1 min-w-0">
+                                <h4 className="font-extrabold text-gray-100 truncate text-base">{r.author}</h4>
+                                <div className="text-xs text-gray-400 truncate font-medium">{r.role}</div>
+                                {r.discord && <div className="text-[10px] text-gray-500 mt-1 font-mono">Discord: {r.discord}</div>}
+                            </div>
+                        </div>
+                        
+                        {r.game_title && (
+                            <div className="mb-4">
+                                <span className="text-[10px] uppercase font-bold text-gray-500 block mb-1">Game</span>
+                                <span className="inline-block bg-gray-900 border border-gray-700 text-accent px-2 py-1 rounded text-xs font-bold">{r.game_title}</span>
+                            </div>
+                        )}
+
+                        {r.ratings && r.ratings.length > 0 && (
+                            <div className="grid grid-cols-2 gap-y-2 mb-5">
+                                {r.ratings.map(cat => (
+                                    <div key={cat.category} className="flex flex-col">
+                                        <span className="text-[10px] text-gray-500 font-bold uppercase">{cat.category}</span>
+                                        <div className="scale-75 origin-left -mt-0.5">{renderStars(cat.value)}</div>
+                                    </div>
+                                ))}
+                                <div className="col-span-2 pt-2 mt-2 border-t border-gray-800/50 flex items-center justify-between">
+                                    <span className="text-xs text-gray-400 font-bold uppercase">Average</span>
+                                    <div className="flex items-center gap-2">
+                                        {renderStars(calculateAverageRating(r.ratings))}
+                                        <span className="text-xs font-bold text-yellow-500">{(calculateAverageRating(r.ratings)).toFixed(1)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
+                        <p className="text-sm text-gray-300 font-medium italic leading-relaxed flex-grow whitespace-pre-line mb-4 relative">
+                            <span className="absolute -top-3 -left-2 text-4xl text-gray-700/30 font-serif">"</span>
+                            {r.text}
+                        </p>
+                        
+                        <div className="text-[10px] text-gray-600 font-bold uppercase text-right mt-auto pt-4 border-t border-gray-800">
+                            {formatDate(r.date)}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function AdminTab({reviews, inviteCodes, reloadReviews, reloadProjects, reloadCodes, onError, onToast, openReviewModal, openGenerateModal}) {
+    return (
+        <div className="animate-fade-in space-y-12">
+            <section>
+                <div className="flex justify-between items-center border-b border-gray-800 pb-4 mb-6">
+                    <h2 className="text-2xl font-extrabold text-white">Review Moderation</h2>
+                    <button onClick={()=>openReviewModal(null)} className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 font-bold text-xs">Add Manual Review</button>
+                </div>
+                
+                <div className="glass rounded-xl border border-gray-700 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-gray-900/90 text-gray-400 font-bold uppercase tracking-wider text-xs">
+                                <tr>
+                                    <th className="p-4">Author</th>
+                                    <th className="p-4">Game</th>
+                                    <th className="p-4">Status</th>
+                                    <th className="p-4">Date</th>
+                                    <th className="p-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-800 font-medium">
+                                {reviews.map(r => (
+                                    <tr key={r.id} className="hover:bg-gray-800/30">
+                                        <td className="p-4"><div className="font-bold text-gray-200">{r.author}</div><div className="text-xs text-gray-500">{r.role}</div></td>
+                                        <td className="p-4 text-gray-400">{r.game_title || '-'}</td>
+                                        <td className="p-4">
+                                            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${r.published ? 'bg-green-900/30 text-green-400 border border-green-800' : 'bg-yellow-900/30 text-yellow-500 border border-yellow-800'}`}>
+                                                {r.published ? 'Published' : 'Pending'}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 text-gray-500 text-xs">{formatDate(r.date)}</td>
+                                        <td className="p-4 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                {!r.published && (
+                                                    <button onClick={async()=>{
+                                                        const c=getSupabase();if(!c)return;
+                                                        const {error}=await c.from('reviews').update({published:true}).eq('id',r.id);
+                                                        if(error)onError(error.message);else{reloadReviews();onToast('Published.');}
+                                                    }} className="px-2 py-1 bg-green-900/50 hover:bg-green-800 text-green-300 rounded border border-green-700 text-xs font-bold">Approve</button>
+                                                )}
+                                                {r.published && (
+                                                    <button onClick={async()=>{
+                                                        const c=getSupabase();if(!c)return;
+                                                        const {error}=await c.from('reviews').update({published:false}).eq('id',r.id);
+                                                        if(error)onError(error.message);else{reloadReviews();onToast('Hidden.');}
+                                                    }} className="px-2 py-1 bg-yellow-900/50 hover:bg-yellow-800 text-yellow-300 rounded border border-yellow-700 text-xs font-bold">Hide</button>
+                                                )}
+                                                <button onClick={()=>openReviewModal(r)} className="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-white rounded border border-gray-600 text-xs font-bold">Edit</button>
+                                                <button onClick={async()=>{
+                                                    if(!confirm('Delete review?'))return;
+                                                    const c=getSupabase();if(!c)return;
+                                                    const {error}=await c.from('reviews').delete().eq('id',r.id);
+                                                    if(error)onError(error.message);else{reloadReviews();onToast('Deleted.');}
+                                                }} className="px-2 py-1 bg-red-900/50 hover:bg-red-800 text-red-300 rounded border border-red-700 text-xs font-bold">Del</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {reviews.length===0 && <tr><td colSpan="5" className="p-8 text-center text-gray-500 font-bold">No reviews found.</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <div className="flex justify-between items-center border-b border-gray-800 pb-4 mb-6">
+                    <h2 className="text-2xl font-extrabold text-white">Active Invite Codes</h2>
+                    <button onClick={openGenerateModal} className="bg-accent/20 hover:bg-accent/30 text-accent px-4 py-2 rounded border border-accent/50 font-bold text-xs">Generate Code</button>
+                </div>
+                
+                <div className="glass rounded-xl border border-gray-700 overflow-hidden">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                        {inviteCodes.map(code => (
+                            <div key={code.id} className="bg-gray-900 border border-gray-700 rounded-lg p-4 flex flex-col">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className="font-mono text-lg font-bold text-white tracking-widest">{code.code}</span>
+                                    <button onClick={async()=>{
+                                        const c=getSupabase();if(!c)return;
+                                        await c.from('invite_codes').delete().eq('id',code.id);
+                                        reloadCodes();
+                                    }} className="text-gray-500 hover:text-red-500 text-sm">×</button>
+                                </div>
+                                <div className="text-xs text-gray-400 font-medium space-y-1">
+                                    {code.author && <div>For: <span className="text-gray-200">{code.author}</span></div>}
+                                    {code.game_title && <div>Game: <span className="text-gray-200">{code.game_title}</span></div>}
+                                </div>
+                                <div className="mt-auto pt-3 text-[10px] text-gray-600 uppercase font-bold text-right">
+                                    Created: {formatDate(code.created_at)}
+                                </div>
+                            </div>
+                        ))}
+                        {inviteCodes.length===0 && <div className="col-span-full py-8 text-center text-gray-500 font-bold">No unused codes.</div>}
+                    </div>
+                </div>
+            </section>
+        </div>
+    );
+}
+
+function LoginModal({onSuccess, onCancel}) {
+    const [email,setEmail] = useState('');
+    const [password,setPassword] = useState('');
+    const [error,setError] = useState('');
+    const [loading,setLoading] = useState(false);
+
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setError(''); setLoading(true);
+        const client = getSupabase();
+        if(!client){setError('Database unavailable');setLoading(false);return;}
+        
+        try {
+            const { data, error } = await client.auth.signInWithPassword({ email, password });
+            if (error) throw error;
+            onSuccess(data.session);
+        } catch(err) {
+            setError(err.message || 'Login failed');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            <div className="glass w-full max-w-sm rounded-2xl border border-gray-700 shadow-2xl overflow-hidden relative">
+                <button onClick={onCancel} className="absolute top-4 right-4 text-gray-500 hover:text-white font-bold text-xl leading-none">×</button>
+                <div className="p-8">
+                    <h2 className="text-2xl font-extrabold text-white mb-6 text-center">Admin Access</h2>
+                    {error && <div className="mb-4 text-red-400 text-xs font-bold text-center bg-red-950/50 p-2 rounded border border-red-900">{error}</div>}
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        <input type="email" placeholder="Admin Email" value={email} onChange={e=>setEmail(e.target.value)} required className="form-input text-sm" />
+                        <input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required className="form-input text-sm" />
+                        <button type="submit" disabled={loading} className="w-full bg-accent hover:bg-cyan-400 text-dark font-bold py-3 rounded-lg transition-colors mt-2 text-sm">
+                            {loading ? 'Authenticating...' : 'Login'}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function InviteCodeModal({onClose, onSubmitted, onError}) {
+    const [code,setCode] = useState('');
+    const [loading,setLoading] = useState(false);
+    const [step,setStep] = useState(1);
+    const [prefill,setPrefill] = useState(null);
+
+    const verifyCode = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        const c = getSupabase();
+        if(!c){onError('DB error');setLoading(false);return;}
+        
+        const {data,error} = await c.from('invite_codes').select('*').eq('code',code).eq('used',false).maybeSingle();
+        if(error || !data) {
+            onError('Invalid or expired code.');
+            setLoading(false);
+            return;
+        }
+        setPrefill(data);
+        setStep(2);
+        setLoading(false);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            <div className="glass w-full max-w-lg rounded-2xl border border-gray-700 shadow-2xl overflow-hidden relative max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-900/50 sticky top-0 z-10">
+                    <h2 className="text-xl font-extrabold text-white">{step===1 ? 'Enter Invite Code' : 'Submit Feedback'}</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white font-bold text-xl leading-none">×</button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto">
+                    {step === 1 ? (
+                        <form onSubmit={verifyCode} className="space-y-4">
+                            <p className="text-sm text-gray-400 font-medium mb-4">You need an invite code from Jakub to submit a review.</p>
+                            <input type="text" placeholder="XXXX-XXXX" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} required className="form-input text-center font-mono text-xl tracking-widest uppercase py-4" />
+                            <button type="submit" disabled={loading} className="w-full bg-accent hover:bg-cyan-400 text-dark font-bold py-3 rounded-lg transition-colors">
+                                {loading ? 'Checking...' : 'Verify Code'}
+                            </button>
+                        </form>
+                    ) : (
+                        <SubmitReviewForm codeData={prefill} onSuccess={onSubmitted} onError={onError} />
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function SubmitReviewForm({codeData, onSuccess, onError}) {
+    const [formData,setFormData] = useState({
+        author: codeData.author || '',
+        role: codeData.role || '',
+        discord: codeData.discord || '',
+        pfp: codeData.pfp || '',
+        game_title: codeData.game_title || '',
+        text: '',
+        ratings: defaultCategories
     });
+    const [loading,setLoading] = useState(false);
 
-    const blob = new Blob([output], { type: 'text/plain;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'Game_Pl_translated.po';
-    a.click();
-  }
+    const updateRating = (idx, val) => {
+        const newR = [...formData.ratings];
+        newR[idx].value = Number(val);
+        setFormData({...formData, ratings:newR});
+    };
 
-  function escapeHtml(str) {
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
+    const submit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        const c = getSupabase();
+        
+        try {
+            const {error:insErr} = await c.from('reviews').insert({
+                author: formData.author.trim(),
+                role: formData.role.trim(),
+                discord_username: formData.discord.trim(),
+                avatar_url: formData.pfp.trim(),
+                game_title: formData.game_title.trim(),
+                review_text: formData.text.trim(),
+                ratings: formData.ratings,
+                published: false 
+            });
+            if(insErr) throw insErr;
+            
+            await c.from('invite_codes').update({used:true}).eq('id',codeData.id);
+            onSuccess();
+        } catch(err) {
+            onError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <form onSubmit={submit} className="space-y-5">
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1">Name / Studio *</label>
+                    <input type="text" value={formData.author} onChange={e=>setFormData({...formData,author:e.target.value})} required className="form-input text-sm" />
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1">Role *</label>
+                    <input type="text" placeholder="e.g. Lead Developer" value={formData.role} onChange={e=>setFormData({...formData,role:e.target.value})} required className="form-input text-sm" />
+                </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1">Game Title</label>
+                    <input type="text" value={formData.game_title} onChange={e=>setFormData({...formData,game_title:e.target.value})} className="form-input text-sm bg-gray-800/50" readOnly={!!codeData.game_title} />
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1">Discord (Optional)</label>
+                    <input type="text" value={formData.discord} onChange={e=>setFormData({...formData,discord:e.target.value})} className="form-input text-sm" />
+                </div>
+            </div>
+
+            <div>
+                <label className="block text-xs font-bold text-gray-400 mb-1">Avatar URL (Optional)</label>
+                <input type="url" value={formData.pfp} onChange={e=>setFormData({...formData,pfp:e.target.value})} placeholder="https://..." className="form-input text-sm" />
+            </div>
+            
+            <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-800">
+                <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">Ratings</label>
+                <div className="space-y-3">
+                    {formData.ratings.map((cat, idx) => (
+                        <div key={idx} className="flex items-center justify-between">
+                            <span className="text-sm font-bold text-gray-300 w-1/3">{cat.category}</span>
+                            <input type="range" min="1" max="5" step="0.5" value={cat.value} onChange={e=>updateRating(idx, e.target.value)} className="w-1/3 accent-accent" />
+                            <span className="text-sm font-bold text-accent w-8 text-right">{cat.value}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div>
+                <label className="block text-xs font-bold text-gray-400 mb-1">Review *</label>
+                <textarea required rows="4" value={formData.text} onChange={e=>setFormData({...formData,text:e.target.value})} className="form-input text-sm resize-none"></textarea>
+            </div>
+
+            <button type="submit" disabled={loading} className="w-full bg-accent hover:bg-cyan-400 text-dark font-bold py-3 rounded-lg transition-colors mt-4">
+                {loading ? 'Submitting...' : 'Submit Feedback'}
+            </button>
+        </form>
+    );
+}
+
+function GenerateCodeModal({onClose, onCreated, onError, onToast}) {
+    const [data,setData] = useState({ author:'', role:'', game_title:'', discord:'' });
+    const [loading,setLoading] = useState(false);
+
+    const generateString = () => {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let res = '';
+        for(let i=0;i<8;i++){
+            if(i===4) res+='-';
+            res += chars.charAt(Math.floor(Math.random()*chars.length));
+        }
+        return res;
+    };
+
+    const submit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        const code = generateString();
+        const c = getSupabase();
+        
+        const {error} = await c.from('invite_codes').insert({
+            code,
+            author: data.author.trim() || null,
+            role: data.role.trim() || null,
+            game_title: data.game_title.trim() || null,
+            discord_username: data.discord.trim() || null
+        });
+
+        if(error) onError(error.message);
+        else {
+            navigator.clipboard.writeText(code).catch(()=>{});
+            onToast(`Code copied: ${code}`);
+            onCreated();
+        }
+        setLoading(false);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            <div className="glass w-full max-w-sm rounded-2xl border border-gray-700 shadow-2xl p-6 relative">
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white font-bold text-xl leading-none">×</button>
+                <h2 className="text-xl font-extrabold text-white mb-6">Generate Invite Code</h2>
+                
+                <form onSubmit={submit} className="space-y-4">
+                    <p className="text-xs text-gray-400 font-medium mb-2">Pre-fill data for the client (optional):</p>
+                    <input type="text" placeholder="Target Client / Studio Name" value={data.author} onChange={e=>setData({...data,author:e.target.value})} className="form-input text-sm" />
+                    <input type="text" placeholder="Game Title" value={data.game_title} onChange={e=>setData({...data,game_title:e.target.value})} className="form-input text-sm" />
+                    <button type="submit" disabled={loading} className="w-full bg-accent hover:bg-cyan-400 text-dark font-bold py-3 rounded-lg transition-colors mt-4">
+                        {loading ? 'Generating...' : 'Generate & Copy Code'}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+function ReviewFormModal({review, onSave, onCancel, onError}) {
+    const isEdit = !!review;
+    const [formData,setFormData] = useState(isEdit ? {...review} : {
+        author:'', role:'', game_title:'', text:'', pfp:'', discord:'', ratings: defaultCategories, published:true
+    });
+    const [loading,setLoading] = useState(false);
+
+    const submit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        const c = getSupabase();
+        
+        const payload = {
+            author: formData.author,
+            role: formData.role,
+            game_title: formData.game_title,
+            review_text: formData.text,
+            avatar_url: formData.pfp,
+            discord_username: formData.discord,
+            ratings: formData.ratings,
+            published: formData.published
+        };
+
+        let result;
+        if(isEdit) result = await c.from('reviews').update(payload).eq('id',review.id);
+        else result = await c.from('reviews').insert(payload);
+
+        if(result.error) onError(result.error.message);
+        else onSave();
+        setLoading(false);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            <div className="glass w-full max-w-lg rounded-2xl border border-gray-700 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-900/50 sticky top-0">
+                    <h2 className="text-xl font-extrabold text-white">{isEdit ? 'Edit Review' : 'Add Manual Review'}</h2>
+                    <button onClick={onCancel} className="text-gray-400 hover:text-white font-bold text-xl leading-none">×</button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto">
+                    <form id="review-form" onSubmit={submit} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <input type="text" placeholder="Author" required value={formData.author} onChange={e=>setFormData({...formData,author:e.target.value})} className="form-input text-sm" />
+                            <input type="text" placeholder="Role" value={formData.role} onChange={e=>setFormData({...formData,role:e.target.value})} className="form-input text-sm" />
+                        </div>
+                        <input type="text" placeholder="Game Title" value={formData.game_title} onChange={e=>setFormData({...formData,game_title:e.target.value})} className="form-input text-sm" />
+                        <textarea required rows="4" placeholder="Review text..." value={formData.text} onChange={e=>setFormData({...formData,text:e.target.value})} className="form-input text-sm resize-none"></textarea>
+                        
+                        <label className="flex items-center gap-2 text-sm text-gray-300 font-bold cursor-pointer p-2 bg-gray-900/50 rounded border border-gray-800">
+                            <input type="checkbox" checked={formData.published} onChange={e=>setFormData({...formData,published:e.target.checked})} className="rounded text-accent bg-gray-800 border-gray-600 focus:ring-accent" />
+                            Published (Visible publicly)
+                        </label>
+                    </form>
+                </div>
+                
+                <div className="p-4 border-t border-gray-800 bg-gray-900/80 flex justify-end gap-3 sticky bottom-0">
+                    <button type="button" onClick={onCancel} className="px-4 py-2 text-gray-400 hover:text-white font-bold text-sm">Cancel</button>
+                    <button type="submit" form="review-form" disabled={loading} className="px-6 py-2 bg-accent hover:bg-cyan-400 text-dark font-bold rounded shadow-lg text-sm">
+                        {loading ? 'Saving...' : 'Save'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function ProjectFormModal({project, reviews, onSave, onCancel}) {
+    const isEdit = !!project;
+    const [formData,setFormData] = useState(isEdit ? {...project} : {
+        title:'', steamLink:'', details:'', pinnedReviews:[], pinned:false, sort_order:0
+    });
+    const pubReviews = reviews.filter(r=>r.published);
+
+    const toggleReview = (id) => {
+        const arr = formData.pinnedReviews || [];
+        if(arr.includes(id)) setFormData({...formData, pinnedReviews: arr.filter(x=>x!==id)});
+        else setFormData({...formData, pinnedReviews: [...arr, id]});
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            <div className="glass w-full max-w-2xl rounded-2xl border border-gray-700 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-900/50 sticky top-0">
+                    <h2 className="text-xl font-extrabold text-white">{isEdit ? 'Edit Game' : 'Add Game'}</h2>
+                    <button onClick={onCancel} className="text-gray-400 hover:text-white font-bold text-xl leading-none">×</button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto">
+                    <form id="project-form" onSubmit={(e)=>{e.preventDefault();onSave(formData);}} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-1">Title *</label>
+                                <input type="text" required value={formData.title} onChange={e=>setFormData({...formData,title:e.target.value})} className="form-input text-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-1">Steam App URL</label>
+                                <input type="url" value={formData.steamLink} onChange={e=>setFormData({...formData,steamLink:e.target.value})} placeholder="https://store.steampowered.com/app/..." className="form-input text-sm" />
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <label className="flex items-center gap-2 text-sm text-gray-300 font-bold cursor-pointer p-3 bg-gray-900/50 rounded border border-gray-800">
+                                <input type="checkbox" checked={formData.pinned} onChange={e=>setFormData({...formData,pinned:e.target.checked})} className="rounded text-accent" />
+                                Pin to Top
+                            </label>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-1">Sort Order (Lower = First)</label>
+                                <input type="number" value={formData.sort_order} onChange={e=>setFormData({...formData,sort_order:e.target.value})} className="form-input text-sm" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 mb-1">Details / Description</label>
+                            <textarea rows="4" value={formData.details} onChange={e=>setFormData({...formData,details:e.target.value})} className="form-input text-sm resize-none"></textarea>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 mb-2">Pin Developer Reviews to this Game</label>
+                            <div className="max-h-48 overflow-y-auto border border-gray-700 rounded bg-gray-900/30 p-2 space-y-1">
+                                {pubReviews.length===0 && <div className="text-xs text-gray-500 p-2 font-bold">No published reviews available.</div>}
+                                {pubReviews.map(r => (
+                                    <label key={r.id} className="flex items-center gap-3 p-2 hover:bg-gray-800 rounded cursor-pointer border border-transparent hover:border-gray-700 transition-colors">
+                                        <input type="checkbox" checked={(formData.pinnedReviews||[]).includes(r.id)} onChange={()=>toggleReview(r.id)} className="rounded text-accent" />
+                                        <div className="text-xs truncate font-medium"><span className="font-bold text-white">{r.author}</span> - {r.game_title || 'General'}</div>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                
+                <div className="p-4 border-t border-gray-800 bg-gray-900/80 flex justify-end gap-3 sticky bottom-0">
+                    <button type="button" onClick={onCancel} className="px-4 py-2 text-gray-400 hover:text-white font-bold text-sm">Cancel</button>
+                    <button type="submit" form="project-form" className="px-6 py-2 bg-accent hover:bg-cyan-400 text-dark font-bold rounded shadow-lg text-sm">Save</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
 </script>
 </body>
 </html>
