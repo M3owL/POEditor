@@ -135,7 +135,6 @@
 <script>
   let entries = [];
   let currentIndex = 0;
-  let originalWorkbook = null;
 
   window.onload = function() {
     const savedData = localStorage.getItem('translator_progress');
@@ -159,7 +158,6 @@
   function clearProgress() {
     if (confirm('Na pewno? Skasujesz cały aktualny postęp w przeglądarce.')) {
       localStorage.removeItem('translator_progress');
-      originalWorkbook = null;
       location.reload();
     }
   }
@@ -209,7 +207,6 @@
 
   function parsePO(text) {
     entries = [];
-    originalWorkbook = null;
     const rawBlocks = text.split(/\n\r?\n/);
     
     rawBlocks.forEach(block => {
@@ -231,8 +228,8 @@
   }
 
   function parseXLSX(data) {
-    originalWorkbook = XLSX.read(data, { type: 'array', raw: true });
-    const sheet = originalWorkbook.Sheets[originalWorkbook.SheetNames[0]];
+    const workbook = XLSX.read(data, { type: 'array', raw: true });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const json = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
     
     entries = [];
@@ -242,7 +239,6 @@
       
       entries.push({
         type: 'xlsx',
-        rowIndex: i,
         id: row[0] !== undefined ? String(row[0]) : '',
         context: row[1] !== undefined ? String(row[1]) : '',
         source: row[2] !== undefined ? String(row[2]) : '',
@@ -417,22 +413,23 @@
   function exportFile() {
     if (!entries.length) return;
     
-    if (entries[0].type === 'xlsx' && originalWorkbook) {
-      const sheetName = originalWorkbook.SheetNames[0];
-      const sheet = originalWorkbook.Sheets[sheetName];
-
+    if (entries[0].type === 'xlsx') {
+      const wsData = [['ID', 'Context (msgctxt)', 'Source text', 'Translation']];
+      
       entries.forEach(e => {
-        const cellAddress = XLSX.utils.encode_cell({ c: 3, r: e.rowIndex });
-        sheet[cellAddress] = { t: 's', v: e.target };
+        wsData.push([
+          e.id,
+          e.context,
+          e.source,
+          e.target
+        ]);
       });
       
-      if (sheet['!ref']) {
-        const range = XLSX.utils.decode_range(sheet['!ref']);
-        range.e.c = Math.max(range.e.c, 3);
-        sheet['!ref'] = XLSX.utils.encode_range(range);
-      }
-
-      XLSX.writeFile(originalWorkbook, 'Przetlumaczone.xlsx');
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+      
+      XLSX.writeFile(wb, 'Przetlumaczone.xlsx');
     } else {
       let output = '';
       entries.forEach(e => {
