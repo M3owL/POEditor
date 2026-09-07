@@ -242,7 +242,7 @@
       
       entries.push({
         type: 'xlsx',
-        rowIndex: i, // Pamiętamy numer wiersza z oryginału
+        rowIndex: i,
         id: row[0] !== undefined ? String(row[0]) : '',
         context: row[1] !== undefined ? String(row[1]) : '',
         source: row[2] !== undefined ? String(row[2]) : '',
@@ -422,11 +422,16 @@
       const sheet = originalWorkbook.Sheets[sheetName];
 
       entries.forEach(e => {
-        // Wpisuje nowe tłumaczenie dokładnie do kolumny D (c: 3) w zapisanym wierszu
         const cellAddress = XLSX.utils.encode_cell({ c: 3, r: e.rowIndex });
         sheet[cellAddress] = { t: 's', v: e.target };
       });
       
+      if (sheet['!ref']) {
+        const range = XLSX.utils.decode_range(sheet['!ref']);
+        range.e.c = Math.max(range.e.c, 3);
+        sheet['!ref'] = XLSX.utils.encode_range(range);
+      }
+
       XLSX.writeFile(originalWorkbook, 'Przetlumaczone.xlsx');
     } else {
       let output = '';
