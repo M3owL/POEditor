@@ -103,7 +103,7 @@
 
     <div class="entry-list" id="entry-list"></div>
     <div style="padding:15px; border-top: 1px solid var(--border);">
-      <button class="btn" style="width:100%;" onclick="exportFile()">Pobierz Przetłumaczony Plik</button>
+      <button class="btn" style="width:100%;" onclick="exportFile()">Pobierz Przetłumaczony Plik (CSV)</button>
     </div>
   </div>
 
@@ -414,22 +414,21 @@
     if (!entries.length) return;
     
     if (entries[0].type === 'xlsx') {
-      const wsData = [['ID', 'Context (msgctxt)', 'Source text', 'Translation']];
+      let csvContent = '\uFEFFID,Context (msgctxt),Source text,Translation\n';
       
       entries.forEach(e => {
-        wsData.push([
-          e.id,
-          e.context,
-          e.source,
-          e.target
-        ]);
+        const id = `"${String(e.id).replace(/"/g, '""')}"`;
+        const ctx = `"${String(e.context).replace(/"/g, '""')}"`;
+        const src = `"${String(e.source).replace(/"/g, '""')}"`;
+        const tgt = `"${String(e.target).replace(/"/g, '""')}"`;
+        csvContent += `${id},${ctx},${src},${tgt}\n`;
       });
       
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-      
-      XLSX.writeFile(wb, 'Przetlumaczone.xlsx');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'Przetlumaczone.csv';
+      a.click();
     } else {
       let output = '';
       entries.forEach(e => {
