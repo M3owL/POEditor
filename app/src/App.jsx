@@ -20,9 +20,32 @@ import ShortcutsDialog from './components/ShortcutsDialog.jsx';
 import { ToastStack, useToasts } from './components/ui/Toast.jsx';
 
 import { FILTER, SEVERITY } from './lib/constants.js';
-import { clearTargets, createEntry, entryStatus, projectProgress, setTargetForm, STATUS } from './lib/entry.js';
+import {
+  clearTargets,
+  createEntry,
+  entryStatus,
+  projectProgress,
+  setTargetForm,
+  targetForms,
+  STATUS,
+} from './lib/entry.js';
 import { analyzeProject, hasIssueAtLeast } from './lib/qa.js';
 import { buildMemory, lookupMatches } from './lib/tm.js';
+import { assessEntry, buildSuggestions } from './lib/suggest.js';
+import { applyAllFixes, applyFix } from './lib/naturalness.js';
+import { buildPrompt, copyToClipboard } from './lib/prompt.js';
+import {
+  clearDismissals as clearDismissalsState,
+  dismiss,
+  dismissAllOnEntry,
+  filterAnalysis,
+  hiddenFindings,
+  isDismissed,
+  muteCheck,
+  pruneDismissals,
+  restore as restoreDismissal,
+  unmuteCheck,
+} from './lib/dismissed.js';
 import { detectFormat, parseFile, FORMAT_BY_ID } from './formats/index.js';
 import { formatBytes, readFile } from './lib/files.js';
 import {
@@ -35,8 +58,10 @@ import {
 import {
   clearSession,
   createAutosave,
+  loadDismissals,
   loadSession,
   loadSettings,
+  saveDismissals,
   saveSettings,
   storageEstimate,
 } from './lib/storage.js';
@@ -82,7 +107,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [filter, setFilter] = useState(FILTER.ALL);
   const [search, setSearch] = useState('');
-  const [sideTab, setSideTab] = useState('memory');
+  const [sideTab, setSideTab] = useState('overview');
   const [busy, setBusy] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -92,6 +117,7 @@ export default function App() {
   const [restoreAvailable, setRestoreAvailable] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [storageLabel, setStorageLabel] = useState(null);
+  const [dismissals, setDismissals] = useState(loadDismissals);
 
   // Import queue: spreadsheets are confirmed one at a time.
   const [importQueue, setImportQueue] = useState([]);
@@ -130,10 +156,35 @@ export default function App() {
     [settings.targetLanguage],
   );
 
-  const analysis = useMemo(
-    () => analyzeProject(entries, { ...settings, expectedPluralForms }),
-    [entries, settings, expectedPluralForms],
+  /**
+   * Only the settings the checks actually read.
+   *
+   * Passing the whole settings object would re-run the analysis on every
+   * keystroke in the prompt-template field, which has nothing to do with
+   * quality.
+   */
+  const qaSettings = useMemo(
+    () => ({
+      sourceLanguage: settings.sourceLanguage,
+      targetLanguage: settings.targetLanguage,
+      lengthWarnRatio: settings.lengthWarnRatio,
+      flagSameAsSource: settings.flagSameAsSource,
+      expectedPluralForms,
+    }),
+    [
+      settings.sourceLanguage,
+      settings.targetLanguage,
+      settings.lengthWarnRatio,
+      settings.flagSameAsSource,
+      expectedPluralForms,
+    ],
   );
+
+  const rawAnalysis = useMemo(() => analyzeProject(entries, qaSettings), [entries, qaSettings]);
+
+  // Dismissed checks are removed from the analysis, not just from the panel, so
+  // a muted warning stops counting towards the red badge as well.
+  const analysis = useMemo(() => filterAnalysis(rawAnalysis, { state: dismissals }), [rawAnalysis, dismissals]);
 
   const progress = useMemo(() => (entries.length ? projectProgress(entries) : null), [entries]);
   const filterCounts = useMemo(() => computeFilterCounts(entries, analysis), [entries, analysis]);
@@ -154,6 +205,12 @@ export default function App() {
   );
 
   const selectedIssues = selectedEntry ? analysis.byEntry.get(selectedEntry.id) ?? [] : [];
+  const selectedHiddenIssues = selectedEntry
+    ? hiddenFindings(rawAnalysis.byEntry.get(selectedEntry.id), {
+        entryId: selectedEntry.id,
+        state: dismissals,
+      })
+    : [];
 
   // -------------------------------------------------------------- memory
   const memory = useMemo(() => buildMemory([...entries, ...extraMemory]), [entries, extraMemory]);
@@ -165,6 +222,36 @@ export default function App() {
       limit: 5,
     });
   }, [memory, selectedEntry]);
+
+  // ------------------------------------------------- naturalness + suggestions
+  const language = settings.targetLanguage;
+
+  /**
+   * The naturalness assessment, with dismissed corrections removed.
+   *
+   * Ignoring a correction has to lift the score, otherwise the number keeps
+   * punishing a judgement the translator has already made and the number stops
+   * meaning anything.
+   */
+  const assessment = useMemo(
+    () =>
+      assessEntry(selectedEntry, {
+        language,
+        isDismissed: (code) => isDismissed(dismissals, selectedEntry?.id, code),
+      }),
+    [selectedEntry, language, dismissals],
+  );
+
+  const suggestions = useMemo(
+    () =>
+      buildSuggestions(selectedEntry, {
+        memory,
+        entries,
+        language,
+        limit: 6,
+      }),
+    [selectedEntry, memory, entries, language],
+  );
 
   // --------------------------------------------------------------- editing
   const commit = useCallback((updater, options = {}) => {
@@ -245,6 +332,134 @@ export default function App() {
     });
   }, [push]);
 
+  // ------------------------------------------------- corrections and ignores
+  /** Replace one target form, going through the same path as typing does. */
+  const writeForms = useCallback(
+    (forms, label) => {
+      if (!selectedEntry) return;
+      let updated = selectedEntry;
+      forms.forEach((text, index) => {
+        updated = setTargetForm(updated, index, text);
+      });
+
+      commit(
+        (current) =>
+          current.map((item) =>
+            item.id === selectedEntry.id
+              ? { ...item, target: updated.target, pluralTargets: updated.pluralTargets, approved: false }
+              : item,
+          ),
+        { snapshot: label },
+      );
+    },
+    [selectedEntry, commit],
+  );
+
+  const onApplyFix = useCallback(
+    (finding) => {
+      if (!selectedEntry) return;
+
+      const forms = targetForms(selectedEntry);
+      const index = finding.form ?? 0;
+      const next = applyFix(forms[index] ?? '', finding);
+
+      if (next === null) {
+        push('That one has to be rewritten by hand.', { tone: 'warning', ttl: 3000 });
+        return;
+      }
+
+      const updated = [...forms];
+      updated[index] = next;
+      writeForms(updated, 'apply correction');
+    },
+    [selectedEntry, writeForms, push],
+  );
+
+  const onApplyAllFixes = useCallback(() => {
+    if (!selectedEntry) return;
+
+    const forms = targetForms(selectedEntry);
+    let applied = 0;
+
+    // Only the findings still on screen are applied, so a correction the
+    // translator ignored is not quietly applied by the "fix everything" button.
+    const next = forms.map((text, index) => {
+      const forForm = (assessment?.findings ?? []).filter((finding) => (finding.form ?? 0) === index);
+      const result = applyAllFixes(text, forForm);
+      if (result.text !== text) applied += result.applied.length;
+      return result.text;
+    });
+
+    if (applied === 0) {
+      push('Nothing left to fix automatically.', { tone: 'info', ttl: 2500 });
+      return;
+    }
+
+    writeForms(next, 'apply all corrections');
+    push(`Applied ${applied} correction${applied === 1 ? '' : 's'}.`, { tone: 'success', ttl: 2500 });
+  }, [selectedEntry, assessment, writeForms, push]);
+
+  const onToggleDismissFinding = useCallback(
+    (finding, wasDismissed = false) => {
+      if (!selectedEntry || !finding) return;
+      setDismissals((current) =>
+        wasDismissed
+          ? restoreDismissal(current, selectedEntry.id, finding.code)
+          : dismiss(current, selectedEntry.id, finding.code),
+      );
+    },
+    [selectedEntry],
+  );
+
+  const onDismissAllFindings = useCallback(
+    (findings) => {
+      if (!selectedEntry) return;
+      setDismissals((current) => dismissAllOnEntry(current, selectedEntry.id, (findings ?? []).map((f) => f.code)));
+    },
+    [selectedEntry],
+  );
+
+  const onToggleMuteCheck = useCallback((code) => {
+    setDismissals((current) => (current.codes?.[code] ? unmuteCheck(current, code) : muteCheck(current, code)));
+  }, []);
+
+  const onClearDismissals = useCallback(() => {
+    setDismissals(clearDismissalsState());
+    push('Every check is active again.', { tone: 'info', ttl: 2500 });
+  }, [push]);
+
+  // ---------------------------------------------------------- copy for AI
+  const onCopyPrompt = useCallback(
+    async (target = null) => {
+      const source = target ?? selectedEntry;
+      if (!source) return;
+
+      const text = [source.source, source.pluralSource].filter(Boolean).join('\n');
+      const prompt = buildPrompt(text, {
+        template: settings.promptTemplate,
+        key: settings.promptIncludeContext ? source.key : '',
+        comment: settings.promptIncludeContext ? source.comment : '',
+      });
+
+      const copied = await copyToClipboard(prompt);
+      push(copied ? 'Prompt copied to the clipboard.' : 'The browser blocked clipboard access.', {
+        tone: copied ? 'success' : 'error',
+        detail: copied ? 'Paste it into your model of choice.' : 'Copy it from the Source panel instead.',
+        ttl: 3000,
+      });
+    },
+    [selectedEntry, settings.promptTemplate, settings.promptIncludeContext, push],
+  );
+
+  const onUseSuggestion = useCallback(
+    (suggestion) => {
+      if (!selectedEntry) return;
+      writeForms([suggestion.text], 'use suggestion');
+      push('Suggestion applied.', { tone: 'success', ttl: 2000, detail: suggestion.rationale });
+    },
+    [selectedEntry, writeForms, push],
+  );
+
   // ------------------------------------------------------------ navigation
   const goTo = useCallback(
     (step) => {
@@ -291,6 +506,11 @@ export default function App() {
       setFilter(FILTER.ALL);
       setSearch('');
       setHistory([]);
+
+      // Entry ids are per-project, so dismissals keyed to the previous file's
+      // ids would otherwise accumulate forever -- and a reused id would hide a
+      // real finding in the new project.
+      setDismissals((current) => pruneDismissals(current, combined.entries.map((entry) => entry.id)));
 
       const label = FORMAT_BY_ID.get(combined.formatId)?.label ?? combined.formatId;
       push(
@@ -438,6 +658,12 @@ export default function App() {
   );
 
   // ------------------------------------------------------------- autosave
+  // Dismissals are small and read on every render, so they go to localStorage
+  // rather than into the IndexedDB session blob.
+  useEffect(() => {
+    saveDismissals(dismissals);
+  }, [dismissals]);
+
   useEffect(() => {
     if (!settings.autosave || entries.length === 0) return;
 
@@ -510,6 +736,9 @@ export default function App() {
     setHistory([]);
     setSearch('');
     setFilter(FILTER.ALL);
+    // Per-entry dismissals go with the project; muted checks are a preference
+    // and stay.
+    setDismissals((current) => pruneDismissals(current, []));
     await clearSession();
     setRestoreAvailable(false);
     push('Project closed.', { tone: 'info', ttl: 2500 });
@@ -668,6 +897,7 @@ export default function App() {
           <EditorPane
             entry={selectedEntry}
             issues={selectedIssues}
+            hiddenIssueCount={selectedHiddenIssues.length}
             position={visibleIndex >= 0 ? visibleIndex + 1 : 0}
             total={visible.length}
             targetLanguage={settings.targetLanguage}
@@ -675,6 +905,10 @@ export default function App() {
             onApproveToggle={onApproveToggle}
             onClear={onClear}
             onCopySource={onCopySource}
+            onCopyPrompt={() => onCopyPrompt()}
+            onDismissIssue={(issue) => onToggleDismissFinding(issue, false)}
+            onRestoreIssue={() => updateSettings({ showDismissed: true })}
+            assessment={assessment}
             onPrev={() => goTo(-1)}
             onNext={() => goTo(1)}
           />
@@ -698,6 +932,20 @@ export default function App() {
               fileInfo={fileInfo}
               settings={settings}
               onChangeSettings={updateSettings}
+              assessment={assessment}
+              dismissedFindings={assessment?.hidden ?? []}
+              showDismissed={settings.showDismissed}
+              onToggleShowDismissed={() => updateSettings({ showDismissed: !settings.showDismissed })}
+              onApplyFix={onApplyFix}
+              onApplyAllFixes={onApplyAllFixes}
+              onDismissFinding={onToggleDismissFinding}
+              onDismissAllFindings={onDismissAllFindings}
+              onToggleMuteCheck={onToggleMuteCheck}
+              onClearDismissals={onClearDismissals}
+              dismissedMutes={dismissals.codes}
+              suggestions={suggestions}
+              onUseSuggestion={onUseSuggestion}
+              onCopyPrompt={() => onCopyPrompt()}
             />
           </div>
         </main>

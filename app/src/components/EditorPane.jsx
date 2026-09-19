@@ -33,6 +33,7 @@ function PluralLabel({ label, index, total }) {
 export default function EditorPane({
   entry,
   issues,
+  hiddenIssueCount,
   position,
   total,
   targetLanguage,
@@ -40,6 +41,10 @@ export default function EditorPane({
   onApproveToggle,
   onClear,
   onCopySource,
+  onCopyPrompt,
+  onDismissIssue,
+  onRestoreIssue,
+  assessment,
   onPrev,
   onNext,
   onJumpToMatch,
@@ -138,9 +143,28 @@ export default function EditorPane({
           <div className="mb-1.5 flex items-center justify-between">
             <span className="label mb-0">Source</span>
             <div className="flex items-center gap-1">
-              <button type="button" onClick={onCopySource} className="btn-subtle btn-sm" title="Copy source into the translation (Ctrl + Shift + C)">
-                <Icon name="copy" size={12} />
-                Copy
+              {/* Two different "copy" actions, and the distinction matters:
+                  "Fill" puts the source in the translation field to edit,
+                  "Copy for AI" puts it on the clipboard wrapped in the prompt
+                  so it can be pasted straight into a model. */}
+              <button
+                type="button"
+                onClick={onCopySource}
+                className="btn-subtle btn-sm"
+                title="Copy the source into the translation field (Ctrl + Shift + C)"
+              >
+                <Icon name="arrowDown" size={12} />
+                Fill
+              </button>
+
+              <button
+                type="button"
+                onClick={onCopyPrompt}
+                className="btn-subtle btn-sm"
+                title="Copy the source to the clipboard, wrapped in your prompt"
+              >
+                <Icon name="sparkles" size={12} />
+                Copy for AI
               </button>
             </div>
           </div>
@@ -183,22 +207,50 @@ export default function EditorPane({
           </div>
         ) : null}
 
-        {/* ------------------------------------------------------- issues */}
-        {issues?.length ? (
+        {/* ------------------------------------------------------- issues
+            Rendered whenever there is anything to say, including when the only
+            thing to say is that findings are hidden. Otherwise ignoring every
+            warning on an entry makes the bar vanish and the dismissal becomes
+            invisible and un-undoable. */}
+        {issues?.length || hiddenIssueCount > 0 ? (
           <div className="space-y-1 border-b border-line px-4 py-2.5">
-            {issues.map((current, index) => (
-              <div key={`${current.code}-${index}`} className="flex items-start gap-2">
+            {issues?.map((current, index) => (
+              <div key={`${current.code}-${index}`} className="group flex items-start gap-2">
                 <Icon
                   name={SEVERITY_ICON[current.severity]}
                   size={13}
                   className={`mt-0.5 shrink-0 ${SEVERITY_TEXT[current.severity]}`}
                 />
-                <p className="text-xs leading-relaxed text-dim">
+                <p className="min-w-0 flex-1 text-xs leading-relaxed text-dim">
                   <span className={`font-medium ${SEVERITY_TEXT[current.severity]}`}>{current.message}</span>
                   {current.detail ? <span className="text-faint"> — {current.detail}</span> : null}
                 </p>
+                {/* Dismissible from here as well as from the panel, because the
+                    entry is where the translator notices the noise. */}
+                <button
+                  type="button"
+                  onClick={() => onDismissIssue(current)}
+                  className="btn-icon h-5 w-5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                  title="Ignore this warning"
+                  aria-label="Ignore this warning"
+                >
+                  <Icon name="x" size={11} />
+                </button>
               </div>
             ))}
+
+            {hiddenIssueCount > 0 ? (
+              <p className="pt-0.5 text-2xs text-faint">
+                {hiddenIssueCount} ignored finding{hiddenIssueCount === 1 ? '' : 's'} hidden —{' '}
+                <button
+                  type="button"
+                  onClick={() => onRestoreIssue(null)}
+                  className="underline decoration-dotted hover:text-dim"
+                >
+                  show
+                </button>
+              </p>
+            ) : null}
           </div>
         ) : null}
 
@@ -298,8 +350,84 @@ export default function EditorPane({
               );
             })}
           </div>
+
+          {/* ------------------------------------------------------ preview
+              What the finished string looks like, with placeholders highlighted
+              so a lost `%s` is visible rather than merely reported, plus the
+              naturalness verdict for the form being edited. It is a preview of
+              the Polish, not of the markup: the point is to read the sentence
+              back once before approving it. */}
+          <PreviewBlock
+            value={forms[activeForm] ?? ''}
+            result={assessment?.perForm?.[activeForm]}
+            label={assessment?.plural ? pluralLabels[activeForm] : null}
+            source={entry.source}
+          />
         </div>
       </div>
     </section>
+  );
+}
+
+/** Colour band for a 0..100 naturalness score. */
+function previewTone(score) {
+  if (score === null || score === undefined) return { text: 'text-faint', bar: 'bg-surface3', chip: 'bg-surface3' };
+  if (score >= 90) return { text: 'text-ok', bar: 'bg-ok', chip: 'bg-okSoft text-ok' };
+  if (score >= 70) return { text: 'text-accent', bar: 'bg-accent', chip: 'bg-accent-soft text-accent' };
+  if (score >= 50) return { text: 'text-warn', bar: 'bg-warn', chip: 'bg-warnSoft text-warn' };
+  return { text: 'text-err', bar: 'bg-err', chip: 'bg-errSoft text-err' };
+}
+
+function PreviewBlock({ value, result, label, source }) {
+  const empty = !String(value ?? '').trim();
+  const score = result?.score ?? null;
+  const tone = previewTone(score);
+
+  // The single most useful thing to say, if there is anything to say.
+  const headline = (result?.findings ?? [])[0];
+
+  return (
+    <div className="mt-3 rounded-lg border border-line bg-surface2 px-3 py-2.5">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <span className="label mb-0">
+          Preview{label ? ` · ${label}` : ''}
+        </span>
+
+        {empty ? (
+          <span className="text-2xs text-faint">nothing typed</span>
+        ) : (
+          <span className="flex items-center gap-1.5">
+            <span className="h-1 w-12 overflow-hidden rounded-full bg-surface3">
+              <span className={`block h-full rounded-full ${tone.bar}`} style={{ width: `${score ?? 0}%` }} />
+            </span>
+            <span className={`font-mono text-2xs ${tone.text}`}>{score === null ? '—' : score}</span>
+          </span>
+        )}
+      </div>
+
+      {empty ? (
+        <p className="text-xs italic text-faint">The translated string will appear here.</p>
+      ) : (
+        <>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-fg">
+            <HighlightedText text={value} />
+          </p>
+
+          {headline ? (
+            <p className={`mt-1.5 text-2xs ${tone.text}`}>
+              {headline.message}
+            </p>
+          ) : (
+            <p className="mt-1.5 text-2xs text-ok">Reads naturally.</p>
+          )}
+
+          {result?.metrics?.ratio !== null && result?.metrics?.ratio !== undefined && source?.trim() ? (
+            <p className="mt-1 text-2xs text-faint">
+              {result.metrics.ratio}× the source length
+            </p>
+          ) : null}
+        </>
+      )}
+    </div>
   );
 }

@@ -149,6 +149,16 @@ export const DEFAULT_SETTINGS = {
   /** Autosave the working session to the browser. */
   autosave: true,
   theme: 'dark',
+  /**
+   * Instruction wrapped around the source by the "copy for a model" button.
+   * `{text}` is replaced with the source. Editable, because the right wording
+   * depends on the project's style guide rather than on this app.
+   */
+  promptTemplate: 'przetłumacz to na naturalny polski:\n{text}',
+  /** Include the entry key and comment as a trailing note when copying. */
+  promptIncludeContext: true,
+  /** Hide findings the translator has dismissed from the panels. */
+  showDismissed: false,
 };
 
 /** Keyboard shortcuts, shown in the help sheet. */

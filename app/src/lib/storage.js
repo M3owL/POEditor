@@ -43,6 +43,41 @@ export function saveSettings(settings) {
   }
 }
 
+// ---------------------------------------------------------- dismissals
+
+/**
+ * Dismissed checks live in localStorage, not IndexedDB.
+ *
+ * They are a handful of short keys and they are read on every render of the
+ * quality panel, so they need to be synchronous. Putting them in IndexedDB would
+ * mean the panel renders once with everything visible and then re-renders with
+ * the dismissals applied, which is exactly the flash of unwanted red this
+ * feature exists to remove.
+ */
+const DISMISSALS_KEY = 'm3owl-poeditor:dismissed';
+
+export function loadDismissals() {
+  try {
+    const raw = localStorage.getItem(DISMISSALS_KEY);
+    if (!raw) return { entries: {}, codes: {} };
+    const parsed = JSON.parse(raw);
+    return {
+      entries: parsed?.entries && typeof parsed.entries === 'object' ? parsed.entries : {},
+      codes: parsed?.codes && typeof parsed.codes === 'object' ? parsed.codes : {},
+    };
+  } catch {
+    return { entries: {}, codes: {} };
+  }
+}
+
+export function saveDismissals(state) {
+  try {
+    localStorage.setItem(DISMISSALS_KEY, JSON.stringify({ entries: state.entries ?? {}, codes: state.codes ?? {} }));
+  } catch {
+    // Non-fatal: dismissals simply will not survive the session.
+  }
+}
+
 // ------------------------------------------------------------- indexeddb
 
 let dbPromise = null;

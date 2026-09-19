@@ -20,7 +20,7 @@ import App from '../src/App.jsx';
 import Header from '../src/components/Header.jsx';
 import EntryList from '../src/components/EntryList.jsx';
 import EditorPane from '../src/components/EditorPane.jsx';
-import SidePanel from '../src/components/SidePanel.jsx';
+import SidePanel, { MutedChecksList } from '../src/components/SidePanel.jsx';
 import StatusBar from '../src/components/StatusBar.jsx';
 import EmptyState from '../src/components/EmptyState.jsx';
 import ExportDialog from '../src/components/ExportDialog.jsx';
@@ -30,7 +30,9 @@ import Icon from '../src/components/ui/Icon.jsx';
 import { createEntry, projectProgress } from '../src/lib/entry.js';
 import { analyzeProject } from '../src/lib/qa.js';
 import { buildMemory, lookupMatches } from '../src/lib/tm.js';
+import { assessEntry, buildSuggestions } from '../src/lib/suggest.js';
 import { computeFilterCounts, filterEntries, mergeByKey, pluralFormsFor } from '../src/lib/project.js';
+import { CHECK_CATALOGUE } from '../src/lib/dismissed.js';
 import { FORMAT_DESCRIPTORS } from '../src/formats/index.js';
 import { DEFAULT_SETTINGS, FILTER, SHORTCUTS, pluralLabelsFor } from '../src/lib/constants.js';
 
@@ -54,7 +56,34 @@ const ok = (value, message) => assert.ok(value, message);
 const has = (markup, needle, message) =>
   assert.ok(markup.includes(needle), message ?? `expected the markup to contain ${JSON.stringify(needle)}`);
 
+/**
+ * Assert that a piece of *text* reached the markup.
+ *
+ * React escapes quotes, ampersands and angle brackets even in text content, so a
+ * label like `Straight quotes instead of „…”` appears as `&quot;` and a plain
+ * substring search fails on the escaping rather than on the content. Decoding
+ * first means the assertion is about the label, not about React's escaping.
+ */
+const hasText = (markup, text, message) => {
+  const decoded = markup
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+  return has(decoded, text, message);
+};
+
 const render = (element) => renderToStaticMarkup(element);
+
+/**
+ * A shared no-op handler.
+ *
+ * Written as a named constant rather than an inline `() => {}` because inside a
+ * JSX attribute the arrow body's braces and the attribute's own braces run
+ * together into `{}}}` and esbuild cannot parse it.
+ */
+const noop = () => undefined;
 
 /** Every class attribute in the markup, for structural assertions. */
 function classAttributes(markup) {
@@ -529,6 +558,319 @@ test('side panel: an entry with no issues is reported as clean', () => {
     />,
   );
   has(markup, 'passes every check');
+});
+
+// ============================================ Overview / Suggestions tabs
+
+/** The props every SidePanel render needs, so each test only states its own. */
+function panelProps(overrides = {}) {
+  return {
+    tab: 'overview',
+    onTabChange: () => {},
+    entry: SIMPLE[0],
+    issues: [],
+    analysis: ANALYSIS,
+    matches: [],
+    onInsertMatch: () => {},
+    onImportTm: () => {},
+    tmCount: 0,
+    onJumpToIssue: () => {},
+    meta: { entries: 4 },
+    formatLabel: 'gettext PO',
+    fileInfo: { name: 'strings.po', sizeLabel: '2 KB' },
+    settings: SETTINGS,
+    onChangeSettings: () => {},
+    assessment: assessEntry(SIMPLE[0], { language: 'pl' }),
+    dismissedFindings: [],
+    dismissedMutes: {},
+    showDismissed: false,
+    onToggleShowDismissed: () => {},
+    onApplyFix: () => {},
+    onApplyAllFixes: () => {},
+    onDismissFinding: () => {},
+    onDismissAllFindings: () => {},
+    onToggleMuteCheck: () => {},
+    onClearDismissals: () => {},
+    suggestions: [],
+    onUseSuggestion: () => {},
+    onCopyPrompt: () => {},
+    ...overrides,
+  };
+}
+
+test('side panel: the overview tab scores the entry and offers corrections', () => {
+  const broken = createEntry({ key: 'HP', source: 'You have %d HP left', target: 'Zostalo Ci %d HP' });
+  const markup = render(
+    <SidePanel {...panelProps({ entry: broken, assessment: assessEntry(broken, { language: 'pl' }) })} />,
+  );
+
+  has(markup, 'Naturalness', 'the tab must name what it is judging');
+  has(markup, '/ 100', 'the score must be shown out of 100');
+  has(markup, 'Corrections');
+  has(markup, 'Brak polskich znaków', 'the missing diacritics must be reported');
+  has(markup, 'Fix', 'a mechanical correction must offer to apply itself');
+  has(markup, 'Ignore this correction', 'every correction must be ignorable');
+});
+
+test('side panel: the overview tab says so when the text reads naturally', () => {
+  const clean = createEntry({ key: 'A', source: 'Save and close', target: 'Zapisz i zamknij' });
+  const markup = render(
+    <SidePanel {...panelProps({ entry: clean, assessment: assessEntry(clean, { language: 'pl' }) })} />,
+  );
+
+  has(markup, 'Reads naturally.');
+  ok(!markup.includes('Ignore this correction'), 'nothing to ignore when there is nothing to report');
+});
+
+test('side panel: a hint-only correction says it will not be applied', () => {
+  // A calque whose replacement needs the sentence rebuilt must never look like
+  // something the app can do for you.
+  const calque = createEntry({ key: 'A', source: 'We address this problem', target: 'Adresujemy ten problem' });
+  const markup = render(
+    <SidePanel {...panelProps({ entry: calque, assessment: assessEntry(calque, { language: 'pl' }) })} />,
+  );
+
+  has(markup, 'Needs the sentence rebuilt');
+});
+
+test('side panel: ignored corrections are counted and can be shown again', () => {
+  const broken = createEntry({ key: 'HP', source: 'You have %d HP left', target: 'Zostalo Ci %d HP' });
+  const assessment = assessEntry(broken, {
+    language: 'pl',
+    isDismissed: (code) => code === 'missing-diacritics',
+  });
+
+  const markup = render(
+    <SidePanel
+      {...panelProps({
+        entry: broken,
+        assessment,
+        dismissedFindings: assessment.hidden,
+      })}
+    />,
+  );
+
+  has(markup, 'Show ignored (1)');
+  ok(!markup.includes('Brak polskich znaków'), 'the ignored correction must not be listed');
+});
+
+test('side panel: the muted-checks list names every check', () => {
+  // Rendered directly: the tab keeps it behind a collapsed disclosure, and a
+  // collapsed disclosure renders nothing, which would leave the catalogue-to-UI
+  // mapping unverified.
+  const markup = render(<MutedChecksList dismissedMutes={{}} onToggleMuteCheck={noop} />);
+
+  for (const check of CHECK_CATALOGUE) {
+    hasText(markup, check.label, `the "${check.code}" check must be listed and muteable`);
+  }
+
+  for (const group of ['Build-breaking', 'Suspicious', 'Cosmetic', 'Polish']) has(markup, group);
+});
+
+test('side panel: a muted check is marked as such', () => {
+  const markup = render(<MutedChecksList dismissedMutes={{ calque: true }} onToggleMuteCheck={noop} />);
+
+  has(markup, 'line-through', 'a muted check must look muted');
+  const boxes = (markup.match(/checked=""/g) ?? []).length;
+  assert.equal(boxes, 1, 'exactly one check is muted');
+});
+
+test('side panel: the muted-checks disclosure is collapsed by default', () => {
+  const markup = render(<SidePanel {...panelProps()} />);
+  has(markup, 'Muted checks');
+  ok(!markup.includes('Unmute everything'), 'the list opens on demand, not by default');
+});
+
+test('side panel: the suggestions tab shows a confidence for each proposal', () => {
+  const entry = createEntry({ key: 'B', source: 'Save and close', target: '' });
+  const others = [createEntry({ key: 'A', source: 'Save and close', target: 'Zapisz i zamknij' })];
+  const memory = buildMemory(others);
+  const suggestions = buildSuggestions(entry, { memory, entries: others, language: 'pl' });
+
+  const markup = render(<SidePanel {...panelProps({ tab: 'suggestions', entry, suggestions })} />);
+
+  has(markup, 'Zapisz i zamknij');
+  has(markup, 'Memory · exact', 'the proposal must say where it came from');
+  has(markup, 'Use this');
+  has(markup, 'Copy for AI');
+
+  // A unanimous exact match sits just under its ceiling, so match the shape of
+  // the figure rather than one value.
+  const confidence = markup.match(/(\d{1,3})%/);
+  ok(confidence, 'the confidence must be shown as a percentage');
+  const percent = Number(confidence[1]);
+  ok(percent >= 90 && percent <= 100, `an exact match should score near the top, got ${percent}`);
+});
+
+test('side panel: the suggestions tab explains an empty result', () => {
+  const markup = render(<SidePanel {...panelProps({ tab: 'suggestions', suggestions: [] })} />);
+  has(markup, 'Nothing to suggest yet');
+});
+
+test('side panel: the suggestions tab offers a repair of what is typed', () => {
+  const entry = createEntry({ key: 'A', source: 'You have 5 HP left', target: 'Zostalo Ci 5 HP' });
+  const suggestions = buildSuggestions(entry, { memory: buildMemory([]), entries: [], language: 'pl' });
+
+  const markup = render(<SidePanel {...panelProps({ tab: 'suggestions', entry, suggestions })} />);
+
+  has(markup, 'Zostało Ci 5 HP', 'the repaired text must be proposed');
+});
+
+test('side panel: all five tabs are reachable', () => {
+  const markup = render(<SidePanel {...panelProps()} />);
+
+  // Counting roles rather than matching markup: the Quality tab carries a badge
+  // when there are errors, so its label is not immediately followed by the
+  // closing tag.
+  const tabs = markup.match(/role="tab"/g) ?? [];
+  assert.equal(tabs.length, 5, 'five tabs');
+
+  for (const label of ['Overview', 'Suggest', 'Quality', 'Memory', 'Info']) {
+    has(markup, label, `the ${label} tab must be rendered`);
+  }
+});
+
+test('side panel: the prompt template is editable from the info tab', () => {
+  const markup = render(<SidePanel {...panelProps({ tab: 'info' })} />);
+
+  has(markup, 'Copy for AI');
+  has(markup, 'Prompt template');
+  has(markup, '{text}', 'the placeholder must be documented');
+});
+
+// ================================================ EditorPane: preview + copy
+
+test('editor: offers a copy-for-AI button alongside fill-from-source', () => {
+  const markup = render(
+    <EditorPane
+      entry={SIMPLE[0]}
+      issues={[]}
+      position={1}
+      total={4}
+      onChangeForm={() => {}}
+      onApproveToggle={() => {}}
+      onClear={() => {}}
+      onCopySource={() => {}}
+      onCopyPrompt={() => {}}
+      onPrev={() => {}}
+      onNext={() => {}}
+    />,
+  );
+
+  has(markup, 'Copy for AI');
+  has(markup, 'Fill');
+});
+
+test('editor: the preview renders the translation with its score', () => {
+  const entry = createEntry({ key: 'A', source: 'Save and close', target: 'Zapisz i zamknij' });
+  const markup = render(
+    <EditorPane
+      entry={entry}
+      issues={[]}
+      assessment={assessEntry(entry, { language: 'pl' })}
+      position={1}
+      total={1}
+      onChangeForm={() => {}}
+      onApproveToggle={() => {}}
+      onClear={() => {}}
+      onCopySource={() => {}}
+      onCopyPrompt={() => {}}
+      onPrev={() => {}}
+      onNext={() => {}}
+    />,
+  );
+
+  has(markup, 'Preview');
+  has(markup, 'Zapisz i zamknij');
+  has(markup, 'Reads naturally.');
+});
+
+test('editor: the preview reports a broken translation', () => {
+  const entry = createEntry({ key: 'A', source: 'You have 5 HP left', target: 'Zostalo Ci 5 HP' });
+  const markup = render(
+    <EditorPane
+      entry={entry}
+      issues={[]}
+      assessment={assessEntry(entry, { language: 'pl' })}
+      position={1}
+      total={1}
+      onChangeForm={() => {}}
+      onApproveToggle={() => {}}
+      onClear={() => {}}
+      onCopySource={() => {}}
+      onCopyPrompt={() => {}}
+      onPrev={() => {}}
+      onNext={() => {}}
+    />,
+  );
+
+  has(markup, 'Brak polskich znaków', 'the preview must say what is wrong, not just score it');
+});
+
+test('editor: an empty translation previews without crashing', () => {
+  const entry = createEntry({ key: 'A', source: 'Save', target: '' });
+  const markup = render(
+    <EditorPane
+      entry={entry}
+      issues={[]}
+      assessment={assessEntry(entry, { language: 'pl' })}
+      position={1}
+      total={1}
+      onChangeForm={() => {}}
+      onApproveToggle={() => {}}
+      onClear={() => {}}
+      onCopySource={() => {}}
+      onCopyPrompt={() => {}}
+      onPrev={() => {}}
+      onNext={() => {}}
+    />,
+  );
+
+  has(markup, 'nothing typed');
+});
+
+test('editor: every issue has an ignore control', () => {
+  const markup = render(
+    <EditorPane
+      entry={SIMPLE[1]}
+      issues={ANALYSIS.byEntry.get(SIMPLE[1].id) ?? []}
+      position={2}
+      total={4}
+      onChangeForm={() => {}}
+      onApproveToggle={() => {}}
+      onClear={() => {}}
+      onCopySource={() => {}}
+      onCopyPrompt={() => {}}
+      onDismissIssue={() => {}}
+      onPrev={() => {}}
+      onNext={() => {}}
+    />,
+  );
+
+  has(markup, 'Ignore this warning');
+});
+
+test('editor: hidden findings are counted, not silently dropped', () => {
+  const markup = render(
+    <EditorPane
+      entry={SIMPLE[1]}
+      issues={[]}
+      hiddenIssueCount={2}
+      position={2}
+      total={4}
+      onChangeForm={() => {}}
+      onApproveToggle={() => {}}
+      onClear={() => {}}
+      onCopySource={() => {}}
+      onCopyPrompt={() => {}}
+      onDismissIssue={() => {}}
+      onRestoreIssue={() => {}}
+      onPrev={() => {}}
+      onNext={() => {}}
+    />,
+  );
+
+  has(markup, '2 ignored findings hidden');
 });
 
 // ============================================================= StatusBar

@@ -8,10 +8,12 @@
     "dev": "vite",
     "build": "vite build && node tools/publish.mjs",
     "preview": "vite preview --port 4173",
-    "test": "node app/scripts/format-test.mjs && node app/scripts/spreadsheet-test.mjs && node app/scripts/conversion-test.mjs",
+    "test": "node app/scripts/format-test.mjs && node app/scripts/spreadsheet-test.mjs && node app/scripts/conversion-test.mjs && node app/scripts/naturalness-test.mjs && node app/scripts/suggest-test.mjs",
     "test:formats": "node app/scripts/format-test.mjs",
     "test:spreadsheet": "node app/scripts/spreadsheet-test.mjs",
     "test:conversion": "node app/scripts/conversion-test.mjs",
+    "test:naturalness": "node app/scripts/naturalness-test.mjs",
+    "test:suggest": "node app/scripts/suggest-test.mjs",
     "test:render": "vite build --ssr scripts/render-test.jsx --outDir ../.ssr-test --logLevel warn && node .ssr-test/render-test.js",
     "verify": "npm run test && npm run test:render"
   },

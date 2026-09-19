@@ -1,4 +1,4 @@
-import{c as v,n as x}from"./index-iFV9NKz4.js";const g=/^\s*(.+?)\s*-->\s*(.+?)\s*$/;function T(i){const s=String(i??"").replace(/\r\n?/g,`
+import{c as v,n as x}from"./index-Blbd2aF0.js";const g=/^\s*(.+?)\s*-->\s*(.+?)\s*$/;function T(i){const s=String(i??"").replace(/\r\n?/g,`
 `).replace(/^\ufeff/,""),t=[];let e=[];for(const o of s.split(`
 `)){if(o.trim()===""){e.length&&t.push(e),e=[];continue}e.push(o)}return e.length&&t.push(e),t}function b(i,s={}){var l;const t=String(i.text??""),e=/^\s*WEBVTT/.test(t)||s.kind==="vtt",o=[],r=[];let n=0;for(const c of T(t)){let a=0;if(/^\s*WEBVTT/.test(c[0])||/^\s*NOTE\b/.test(c[0]))continue;let u=null;g.test(c[0])||(u=c[0],a=1);const f=(l=c[a])==null?void 0:l.match(g);if(!f){r.push(c.join(" ").slice(0,80));continue}const p=f[1],d=f[2],k=c.slice(a+1);n+=1,o.push(v({id:x(),key:u??String(n),source:k.join(`
 `),origin:{start:p,end:d,cue:n,identifier:u,kind:e?"vtt":"srt"}}))}return{entries:o,meta:{format:"subtitles",kind:e?"vtt":"srt",cueCount:o.length,malformedBlocks:r.length}}}function h(i,s){if(!s||s<=0)return String(i??"").split(`
