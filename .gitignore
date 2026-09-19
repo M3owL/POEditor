@@ -1,0 +1,19 @@
+node_modules/
+dist/
+dist-ssr/
+.ssr-test/
+*.local
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+.vite/
+*.log
+npm-debug.log*
+# Vite writes a bundled copy of the config next to it and leaves it behind if
+# the process is interrupted. It must never reach the repo root.
+vite.config.*.timestamp-*
+.idea/
+.vscode/*
+!.vscode/extensions.json

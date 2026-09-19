@@ -1,0 +1,225 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Design tokens.
+ *
+ * Dark is the default because this is a tool people sit in for hours. The light
+ * palette is a real palette, not an inversion -- the accent and the status
+ * colours are darkened so they keep their contrast against white.
+ */
+:root,
+.dark {
+  --c-canvas: #0b0d12;
+  --c-surface: #11141b;
+  --c-surface-2: #161a23;
+  --c-surface-3: #1c212c;
+  --c-line: #232936;
+  --c-line-strong: #313a4d;
+
+  --c-text: #e6e9f0;
+  --c-text-dim: #9aa4b8;
+  --c-text-faint: #6b7689;
+
+  --c-accent: #6366f1;
+  --c-accent-hover: #4f46e5;
+  --c-accent-soft: rgba(99, 102, 241, 0.14);
+  --c-accent-fg: #ffffff;
+
+  --c-ok: #34d399;
+  --c-ok-soft: rgba(52, 211, 153, 0.14);
+  --c-warn: #fbbf24;
+  --c-warn-soft: rgba(251, 191, 36, 0.14);
+  --c-err: #f87171;
+  --c-err-soft: rgba(248, 113, 113, 0.14);
+  --c-info: #60a5fa;
+  --c-info-soft: rgba(96, 165, 250, 0.14);
+
+  --scroll-thumb: #2c3444;
+  --scroll-thumb-hover: #3b465c;
+}
+
+.light {
+  --c-canvas: #f5f6f8;
+  --c-surface: #ffffff;
+  --c-surface-2: #f1f3f7;
+  --c-surface-3: #e7eaf0;
+  --c-line: #e1e5ec;
+  --c-line-strong: #c9d0dc;
+
+  --c-text: #141821;
+  --c-text-dim: #5b6675;
+  --c-text-faint: #8b95a5;
+
+  --c-accent: #5457e5;
+  --c-accent-hover: #4340d0;
+  --c-accent-soft: rgba(84, 87, 229, 0.1);
+  --c-accent-fg: #ffffff;
+
+  --c-ok: #047857;
+  --c-ok-soft: rgba(4, 120, 87, 0.1);
+  --c-warn: #a16207;
+  --c-warn-soft: rgba(161, 98, 7, 0.1);
+  --c-err: #b91c1c;
+  --c-err-soft: rgba(185, 28, 28, 0.1);
+  --c-info: #1d4ed8;
+  --c-info-soft: rgba(29, 78, 216, 0.1);
+
+  --scroll-thumb: #c8ced9;
+  --scroll-thumb-hover: #adb6c4;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-canvas text-fg font-sans antialiased;
+    /* The editor owns its own scroll regions; the page itself never scrolls. */
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--c-accent-soft);
+    color: var(--c-text);
+  }
+
+  /* A visible focus ring on keyboard navigation only. */
+  :focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 1px;
+    border-radius: 4px;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scroll-thumb) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--scroll-thumb);
+    border-radius: 6px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--scroll-thumb-hover);
+    background-clip: content-box;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+@layer components {
+  /* --------------------------------------------------------------- buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5
+           text-sm font-medium transition-colors duration-100 select-none
+           disabled:cursor-not-allowed disabled:opacity-40 whitespace-nowrap;
+  }
+
+  .btn-primary {
+    @apply btn bg-accent text-accent-fg hover:bg-accent-hover;
+  }
+
+  .btn-ghost {
+    @apply btn border border-line bg-surface2 text-fg hover:bg-surface3 hover:border-lineStrong;
+  }
+
+  .btn-subtle {
+    @apply btn text-dim hover:bg-surface3 hover:text-fg;
+  }
+
+  .btn-danger {
+    @apply btn border border-transparent bg-errSoft text-err hover:border-err;
+  }
+
+  .btn-sm {
+    @apply px-2 py-1 text-xs;
+  }
+
+  .btn-icon {
+    @apply inline-flex h-7 w-7 items-center justify-center rounded-md text-dim
+           transition-colors hover:bg-surface3 hover:text-fg disabled:opacity-40;
+  }
+
+  /* ---------------------------------------------------------------- fields */
+  .input {
+    @apply w-full rounded-lg border border-line bg-surface2 px-3 py-1.5 text-sm
+           text-fg placeholder:text-faint transition-colors
+           focus:border-accent focus:bg-surface focus:outline-none;
+  }
+
+  .textarea {
+    @apply input resize-y leading-relaxed;
+  }
+
+  .select {
+    @apply input cursor-pointer appearance-none pr-8;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%238b95a5' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.6rem center;
+  }
+
+  .label {
+    @apply mb-1 block text-2xs font-semibold uppercase tracking-wide text-faint;
+  }
+
+  /* --------------------------------------------------------------- surfaces */
+  .panel {
+    @apply rounded-xl border border-line bg-surface;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-medium;
+  }
+
+  /* --------------------------------------------------------- placeholder ink */
+  /* Placeholder tokens are highlighted so a translator sees them as objects,
+     not as text they might retype. */
+  .tok {
+    @apply rounded bg-accent-soft px-1 font-mono text-accent;
+    font-size: 0.9em;
+  }
+
+  .tok-warn {
+    @apply rounded bg-errSoft px-1 font-mono text-err;
+    font-size: 0.9em;
+  }
+
+  .scroll-thin {
+    scrollbar-width: thin;
+  }
+
+  /* Visible only to screen readers. */
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}

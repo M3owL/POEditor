@@ -1,0 +1,11 @@
+# Normalise line endings so Windows checkouts don't churn the whole diff.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.xlsx binary
